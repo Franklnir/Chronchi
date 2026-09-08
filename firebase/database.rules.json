@@ -1,0 +1,42 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          "displayName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "email": { ".validate": "newData.isString() && newData.val().length <= 254" },
+          "authProvider": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "updatedAt": { ".validate": "newData.isNumber()" },
+          "photoUrl": { ".validate": "!newData.exists()" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "devices": {
+      "$deviceId": {
+        ".read": "auth != null && data.child('ownerUid').val() === auth.uid",
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerUid').val() === auth.uid) || data.child('ownerUid').val() === auth.uid)",
+        "ownerUid": { ".validate": "newData.isString() && newData.val() === auth.uid" },
+        "$other": { ".validate": true }
+      }
+    },
+    "live": {
+      "$uid": {
+        "$deviceId": {
+          ".read": "auth != null && auth.uid === $uid && root.child('devices').child($deviceId).child('ownerUid').val() === auth.uid",
+          ".write": "auth != null && auth.uid === $uid && root.child('devices').child($deviceId).child('ownerUid').val() === auth.uid",
+          ".validate": "newData.hasChildren() && newData.getPriority() == null"
+        }
+      }
+    },
+    "device_api": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Chronchi</string>
+    <string name="connection_channel_name">Chronchi device connection</string>
+    <string name="connection_channel_description">Keeps your trusted device connection active in the background.</string>
+</resources>

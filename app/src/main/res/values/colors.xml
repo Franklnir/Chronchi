@@ -1,0 +1,7 @@
+<resources>
+    <color name="primary_blue">#1746D1</color>
+    <color name="accent_yellow">#FFC928</color>
+    <color name="accent_red">#FF3B24</color>
+    <color name="paper_white">#FFFDF8</color>
+    <color name="ink_black">#111111</color>
+</resources>

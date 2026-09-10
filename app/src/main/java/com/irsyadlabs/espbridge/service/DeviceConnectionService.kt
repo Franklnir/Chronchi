@@ -47,11 +47,8 @@ class DeviceConnectionService : Service() {
                 if (state == ConnectionState.CONNECTED) {
                     container.systemCollector.refresh()
                     container.router.fullSync(container.stateHub.state.value)
-                    // Send Firebase config if ESP32 is in Xichi mode
-                    val deviceMode = container.ble.deviceInfo.value?.mode
-                    if (deviceMode == "xichi") {
-                        container.router.sendFirebaseConfig()
-                    }
+                    // Firebase config is now manual - user sends via button
+                    // container.router.sendFirebaseConfig()
                 }
             }
         }
@@ -72,15 +69,14 @@ class DeviceConnectionService : Service() {
                     container.ble.bluetoothEnabled() && !container.ble.isConnected() &&
                     !container.ble.isFirmwareUpdateInProgress()
                 ) {
-                    when (container.ble.connectionState.value) {
-                        ConnectionState.DISCONNECTED, ConnectionState.ERROR -> {
-                            container.ble.reconnectTrusted(settings.trustedDeviceAddress)
-                            reconnectDelayMs = (reconnectDelayMs * 2).coerceAtMost(30_000L)
-                        }
-                        else -> Unit
+                    val currentState = container.ble.connectionState.value
+                    if (currentState == ConnectionState.DISCONNECTED || currentState == ConnectionState.ERROR) {
+                        container.ble.reconnectTrusted(settings.trustedDeviceAddress)
+                        // Exponential backoff for retries: 2s, 4s, 8s... up to 30s
+                        reconnectDelayMs = (reconnectDelayMs * 2).coerceAtMost(30_000L)
                     }
                 } else if (container.ble.isConnected()) {
-                    reconnectDelayMs = 2_000L
+                    reconnectDelayMs = 2_000L // Reset delay when connected
                 }
 
                 container.systemCollector.refresh()

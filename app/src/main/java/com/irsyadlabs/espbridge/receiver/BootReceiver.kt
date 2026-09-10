@@ -19,7 +19,7 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val settings = EspBridgeApp.instance.container.settings.settings.first()
-                if (settings.autoConnect && settings.keepBackgroundConnection && settings.trustedDeviceAddress != null) {
+                if (settings.autoConnect && settings.trustedDeviceAddress != null) {
                     runCatching { ContextCompat.startForegroundService(context, Intent(context, DeviceConnectionService::class.java)) }
                 }
             } finally {

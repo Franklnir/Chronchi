@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -197,14 +197,17 @@ fun MainScreenColumn(
             .background(bgColor)
             .then(
                 if (theme == AppTheme.COMIC) {
-                    Modifier.drawBehind {
+                    Modifier.drawWithCache {
                         val gridSize = 30.dp.toPx()
                         val color = ComicBorder.copy(alpha = 0.05f)
-                        for (x in 0..size.width.toInt() step gridSize.toInt()) {
-                            drawLine(color, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), strokeWidth = 1.dp.toPx())
-                        }
-                        for (y in 0..size.height.toInt() step gridSize.toInt()) {
-                            drawLine(color, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth = 1.dp.toPx())
+                        val strokeWidth = 1.dp.toPx()
+                        onDrawBehind {
+                            for (x in 0..size.width.toInt() step gridSize.toInt()) {
+                                drawLine(color, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), strokeWidth = strokeWidth)
+                            }
+                            for (y in 0..size.height.toInt() step gridSize.toInt()) {
+                                drawLine(color, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth = strokeWidth)
+                            }
                         }
                     }
                 } else Modifier

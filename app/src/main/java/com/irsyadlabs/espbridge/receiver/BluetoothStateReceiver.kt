@@ -17,17 +17,19 @@ class BluetoothStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != BluetoothAdapter.ACTION_STATE_CHANGED) return
         val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-        if (state != BluetoothAdapter.STATE_ON) return
-
-        val pending = goAsync()
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            try {
-                val settings = EspBridgeApp.instance.container.settings.settings.first()
-                if (settings.autoConnect && settings.keepBackgroundConnection && settings.trustedDeviceAddress != null) {
-                    runCatching { ContextCompat.startForegroundService(context, Intent(context, DeviceConnectionService::class.java)) }
+        
+        // Trigger reconnection when BT turns ON
+        if (state == BluetoothAdapter.STATE_ON) {
+            val pending = goAsync()
+            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                try {
+                    val settings = EspBridgeApp.instance.container.settings.settings.first()
+                    if (settings.autoConnect && settings.trustedDeviceAddress != null) {
+                        runCatching { ContextCompat.startForegroundService(context, Intent(context, DeviceConnectionService::class.java)) }
+                    }
+                } finally {
+                    pending.finish()
                 }
-            } finally {
-                pending.finish()
             }
         }
     }

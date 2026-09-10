@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,16 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,114 +58,24 @@ fun HomeScreen(
             SupportedSources.all.filter { it.category == category }
         }
     }
+    
     val selectedSourceIds = state.settings.selectedSourceIds
+    val selectedSourceSet = remember(selectedSourceIds) { selectedSourceIds.toSet() }
 
     MainScreenColumn(
         modifier = Modifier.padding(horizontal = UiTokens.HorizontalPadding)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 24.dp),
+            contentPadding = PaddingValues(top = 24.dp, bottom = UiTokens.BottomBarHeight + 24.dp),
             verticalArrangement = Arrangement.spacedBy(UiTokens.SectionSpacing)
         ) {
             item(key = "home_header") {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            "Chronchi",
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Text(
-                            "Bridge Control Center",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        )
-                    }
-                    // Illustrative Notification Dot
-                    Box(
-                        Modifier.size(48.dp).background(Color.White, CircleShape).border(1.5.dp, SketchBorder, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.Notifications, null, tint = SketchBorder, modifier = Modifier.size(24.dp))
-                    }
-                }
+                HomeHeader()
             }
 
             item(key = "phone_summary") {
-                val theme = LocalAppTheme.current
-                val summaryBg = if (theme == AppTheme.COMIC) ComicPink else SketchTeal
-
-                PlayfulCard(
-                    background = summaryBg,
-                    modifier = Modifier.fillMaxWidth(),
-                    innerPadding = PaddingValues(0.dp) // Summary doesn't need inner border padding
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
-                    ) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text(
-                                    timeFormatter.format(now),
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.displaySmall,
-                                    fontSize = 48.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                                Text(
-                                    dateFormatter.format(now),
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
-                            
-                            Box(
-                                modifier = Modifier
-                                    .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(UiTokens.InnerRadius))
-                                    .border(1.2.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(UiTokens.InnerRadius))
-                                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                            ) {
-                                val weather = state.phoneState.weather
-                                Text(
-                                    if (weather.temperatureC != null) "☁ ${weather.temperatureC.toInt()}°C" else "☁ --°C",
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(32.dp))
-                        
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            StatusItem(Icons.Rounded.SignalCellularAlt, networkText(state), Color.White)
-                            Box(Modifier.width(1.2.dp).height(20.dp).background(Color.White.copy(alpha = 0.3f)))
-                            StatusItem(
-                                if (state.phoneState.phoneStatus.charging) Icons.Rounded.BatteryChargingFull else Icons.Rounded.BatteryFull,
-                                "${state.phoneState.phoneStatus.batteryLevel}%",
-                                Color.White
-                            )
-                            Box(Modifier.width(1.2.dp).height(20.dp).background(Color.White.copy(alpha = 0.3f)))
-                            StatusItem(
-                                Icons.Rounded.Bluetooth,
-                                if (state.bleState == ConnectionState.CONNECTED) "Connected" else "--",
-                                Color.White
-                            )
-                        }
-                    }
-                }
+                PhoneSummaryCard(state, now, timeFormatter, dateFormatter)
             }
 
             SourceCategory.entries.forEach { category ->
@@ -181,17 +85,133 @@ fun HomeScreen(
                         SectionHeader(title = category.title)
                     }
                     items(sources, key = { it.id }) { source ->
+                        val iconRes = remember(source.id) { bundledAppIcon(source.id) }
                         SourceListItem(
                             source = source,
-                            iconBitmap = bundledAppIcon(source.id)?.let(iconBitmaps::get),
-                            enabled = source.id in selectedSourceIds,
+                            iconBitmap = iconRes?.let(iconBitmaps::get),
+                            enabled = source.id in selectedSourceSet,
                             onToggle = onToggleSource
                         )
                     }
                 }
             }
+        }
+    }
+}
 
-            item(key = "bottom_spacer") { Spacer(Modifier.height(UiTokens.BottomBarHeight)) }
+@Composable
+private fun HomeHeader() {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                "Chronchi",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                "Bridge Control Center",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+            )
+        }
+        // Illustrative Notification Dot
+        Box(
+            Modifier.size(48.dp).background(Color.White, CircleShape).border(1.5.dp, SketchBorder, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Rounded.Notifications, null, tint = SketchBorder, modifier = Modifier.size(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun PhoneSummaryCard(
+    state: MainUiState,
+    now: LocalDateTime,
+    timeFormatter: DateTimeFormatter,
+    dateFormatter: DateTimeFormatter
+) {
+    val theme = LocalAppTheme.current
+    val summaryBg = if (theme == AppTheme.COMIC) ComicPink else SketchTeal
+    val weather = state.phoneState.weather
+    val status = state.phoneState.phoneStatus
+    val isConnected = state.bleState == ConnectionState.CONNECTED
+
+    PlayfulCard(
+        background = summaryBg,
+        modifier = Modifier.fillMaxWidth(),
+        innerPadding = PaddingValues(0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text(
+                        timeFormatter.format(now),
+                        color = Color.White,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        dateFormatter.format(now),
+                        color = Color.White.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(UiTokens.InnerRadius))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(UiTokens.InnerRadius))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        if (weather.temperatureC != null) "☁ ${weather.temperatureC.toInt()}°C" else "☁ --°C",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(32.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val networkText = remember(status.networkTransport, status.networkGeneration, status.signalLevel) {
+                    when (status.networkTransport) {
+                        "wifi" -> "WiFi ${"▮".repeat(status.signalLevel.coerceIn(0, 4))}"
+                        "cellular" -> "${status.networkGeneration.ifBlank { "Cell" }} ${"▮".repeat(status.signalLevel.coerceIn(0, 4))}"
+                        else -> "OFF"
+                    }
+                }
+                
+                StatusItem(Icons.Rounded.SignalCellularAlt, networkText, Color.White)
+                Box(Modifier.width(1.2.dp).height(20.dp).background(Color.White.copy(alpha = 0.3f)))
+                StatusItem(
+                    if (status.charging) Icons.Rounded.BatteryChargingFull else Icons.Rounded.BatteryFull,
+                    "${status.batteryLevel}%",
+                    Color.White
+                )
+                Box(Modifier.width(1.2.dp).height(20.dp).background(Color.White.copy(alpha = 0.3f)))
+                StatusItem(
+                    Icons.Rounded.Bluetooth,
+                    if (isConnected) "Connected" else "--",
+                    Color.White
+                )
+            }
         }
     }
 }
@@ -263,15 +283,6 @@ private fun StatusItem(icon: androidx.compose.ui.graphics.vector.ImageVector, va
         Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(8.dp))
         Text(value, color = color, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-    }
-}
-
-private fun networkText(state: MainUiState): String {
-    val p = state.phoneState.phoneStatus
-    return when (p.networkTransport) {
-        "wifi" -> "WiFi ${"▮".repeat(p.signalLevel.coerceIn(0, 4))}"
-        "cellular" -> "${p.networkGeneration.ifBlank { "Cell" }} ${"▮".repeat(p.signalLevel.coerceIn(0, 4))}"
-        else -> "OFF"
     }
 }
 

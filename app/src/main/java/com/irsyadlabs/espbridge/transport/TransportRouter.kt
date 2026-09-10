@@ -294,6 +294,16 @@ class TransportRouter(
     }
 
     /**
+     * Send Firebase status request to ESP32 via BLE.
+     * ESP32 responds with Firebase config status (saved/not saved).
+     */
+    fun sendFirebaseStatusRequest() {
+        scope.launch {
+            ble.send(PacketType.FIREBASE_STATUS, "{}")
+        }
+    }
+
+    /**
      * Send clear config command to ESP32 via BLE.
      * ESP32 clears Firebase config from NVS.
      */
@@ -329,6 +339,16 @@ class TransportRouter(
             }.toString()
             Log.d("TransportRouter", "Sending switch mode: $mode")
             ble.send(PacketType.SWITCH_MODE, configJson)
+        }
+    }
+
+    /**
+     * Send WiFi scan command to ESP32 via BLE.
+     * ESP32 scans for networks and sends back PacketType.WIFI_LIST
+     */
+    fun sendWifiScan() {
+        scope.launch {
+            ble.send(PacketType.WIFI_SCAN, "{}")
         }
     }
 }

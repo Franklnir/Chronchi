@@ -193,7 +193,11 @@ fun AppNavHost(viewModel: MainViewModel) {
                 WifiConfigScreen(
                     state = state,
                     onSendWifiConfig = { ssid, password -> viewModel.sendWifiConfig(ssid, password) },
-                    onSwitchMode = { mode -> viewModel.sendSwitchMode(mode) }
+                    onSwitchMode = { mode -> viewModel.sendSwitchMode(mode) },
+                    onScanWifi = { viewModel.scanWifi() },
+                    onSendFirebaseConfig = { viewModel.sendFirebaseConfig() },
+                    onCheckFirebaseStatus = { viewModel.checkFirebaseStatus() },
+                    onForgetFirebase = { viewModel.forgetFirebase() }
                 )
             }
 

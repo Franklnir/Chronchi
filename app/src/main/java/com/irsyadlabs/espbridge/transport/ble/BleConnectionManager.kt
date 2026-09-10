@@ -68,7 +68,15 @@ data class ConnectedDeviceInfo(
     val runningSlot: String,
     val updateStrategy: String = "none",
     val role: String = "main",
-    val mode: String = "chronchi"  // "chronchi" or "xichi"
+    val mode: String = "chronchi",  // "chronchi" or "xichi"
+    val wifiSsid: String? = null,
+    val firebaseSaved: Boolean = false
+)
+
+data class DiscoveredWifiNetwork(
+    val ssid: String,
+    val rssi: Int,
+    val secure: Boolean
 )
 
 private class WriteBatch(
@@ -113,6 +121,9 @@ class BleConnectionManager(private val context: Context) {
     private val _deviceInfo = MutableStateFlow<ConnectedDeviceInfo?>(null)
     val deviceInfo: StateFlow<ConnectedDeviceInfo?> = _deviceInfo.asStateFlow()
 
+    private val _wifiNetworks = MutableStateFlow<List<DiscoveredWifiNetwork>>(emptyList())
+    val wifiNetworks: StateFlow<List<DiscoveredWifiNetwork>> = _wifiNetworks.asStateFlow()
+
     private val discovered = ConcurrentHashMap<String, DiscoveredBleDevice>()
     private val awaitingAcks = ConcurrentHashMap<Int, WriteBatch>()
     private val incomingDecoder = BlePacketCodec.Decoder()
@@ -143,23 +154,56 @@ class BleConnectionManager(private val context: Context) {
 
     @SuppressLint("MissingPermission")
     fun startScan() {
-        val scanner = adapter?.bluetoothLeScanner ?: return
-        if (!hasScanPermission()) return
-        trustedScanAddress = null
+        val adapterRef = adapter
+        if (adapterRef == null || !adapterRef.isEnabled) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Bluetooth belum aktif")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
+        val scanner = adapterRef.bluetoothLeScanner
+        if (scanner == null) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Bluetooth LE Scanner tidak tersedia")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
+        if (!hasScanPermission()) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Izin scan Bluetooth tidak diberikan")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
+        
+        // Find if we have a trusted device in settings to enable auto-pair during scan
+        val trustedAddress = runCatching {
+            scope.launch {
+                val settings = com.irsyadlabs.espbridge.EspBridgeApp.instance.container.settings.settings.first()
+                trustedScanAddress = settings.trustedDeviceAddress
+            }
+        }
+
         discovered.clear()
         _devices.value = emptyList()
         _connectionState.value = ConnectionState.SCANNING
 
+        // Reverting to single specific filter to avoid duplicates
         val filters = listOf(
             ScanFilter.Builder().setServiceUuid(ParcelUuid(BleConstants.SERVICE_UUID)).build()
         )
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
-        scanner.startScan(filters, settings, scanCallback)
+        
+        runCatching {
+            scanner.startScan(filters, settings, scanCallback)
+        }.onFailure {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Gagal memulai scan: ${it.message}")
+            _connectionState.value = ConnectionState.ERROR
+        }
+
         scope.launch {
             delay(BleConstants.SCAN_PERIOD_MS)
-            stopScan()
+            if (_connectionState.value == ConnectionState.SCANNING) {
+                stopScan()
+            }
         }
     }
 
@@ -222,8 +266,11 @@ class BleConnectionManager(private val context: Context) {
                 ?: result.scanRecord?.deviceName
                 ?: "ESP Device"
             val item = DiscoveredBleDevice(device.address, displayName, result.rssi)
+            
+            // Ensure no duplicates by using the map properly
             discovered[item.address] = item
-            _devices.value = discovered.values.sortedByDescending { it.rssi }
+            _devices.value = discovered.values.toList().sortedByDescending { it.rssi }
+            
             val trusted = trustedScanAddress
             if (trusted != null && trusted.equals(item.address, ignoreCase = true)) {
                 stopScan()
@@ -238,29 +285,50 @@ class BleConnectionManager(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun connect(address: String) {
-        if (!hasConnectPermission()) return
+    fun connect(address: String, isAutoConnect: Boolean = false) {
+        if (!hasConnectPermission()) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Izin koneksi Bluetooth tidak diberikan")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
+        val adapterRef = adapter
+        if (adapterRef == null || !adapterRef.isEnabled) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Bluetooth tidak aktif")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
         stopScan()
-        val device = runCatching { adapter?.getRemoteDevice(address) }.getOrNull() ?: return
+        val device = runCatching { adapterRef.getRemoteDevice(address) }.getOrNull()
+        if (device == null) {
+            _protocolStatus.value = BleProtocolStatus(lastError = "Alamat perangkat tidak valid")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
         disconnect(closeOnly = true)
         resetProtocolState()
         _connectionState.value = ConnectionState.CONNECTING
-        gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        
+        // Use autoConnect = true for background/reconnect attempts to let Android OS handle the poll
+        gatt = device.connectGatt(context, isAutoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
         val generation = connectionGeneration
         scope.launch {
-            delay(CONNECTION_TIMEOUT_MS)
+            // Longer timeout for auto-connect since it depends on OS scheduling
+            val timeout = if (isAutoConnect) 60_000L else CONNECTION_TIMEOUT_MS
+            delay(timeout)
             if (generation == connectionGeneration &&
-                _connectionState.value == ConnectionState.CONNECTING
+                (_connectionState.value == ConnectionState.CONNECTING || _connectionState.value == ConnectionState.DISCOVERING)
             ) {
-                disconnect(closeOnly = true)
-                _protocolStatus.value = BleProtocolStatus(lastError = "ESP32 tidak merespons koneksi")
-                _connectionState.value = ConnectionState.ERROR
+                if (!isAutoConnect) { // Don't show error for background auto-poll
+                    disconnect(closeOnly = true)
+                    _protocolStatus.value = BleProtocolStatus(lastError = "Koneksi ke ESP32 timeout")
+                    _connectionState.value = ConnectionState.ERROR
+                }
             }
         }
     }
 
     @SuppressLint("MissingPermission")
-    fun reconnect(address: String) = connect(address)
+    fun reconnect(address: String) = connect(address, isAutoConnect = true)
 
     @SuppressLint("MissingPermission")
     fun disconnect(closeOnly: Boolean = false) {
@@ -692,8 +760,33 @@ class BleConnectionManager(private val context: Context) {
                             "role",
                             if (json.optString("slot") == "recovery") "recovery" else "main"
                         ),
-                        mode = json.optString("mode", "chronchi")
+                        mode = json.optString("mode", "chronchi"),
+                        wifiSsid = json.optString("ssid").takeIf { it.isNotBlank() },
+                        firebaseSaved = json.optBoolean("fs", false) || json.optBoolean("firebase", false)
                     )
+                    return
+                }
+                if (packet.type == PacketType.FIREBASE_STATUS) {
+                    val json = runCatching { JSONObject(packet.jsonPayload) }.getOrNull() ?: return
+                    val saved = json.optBoolean("saved", false)
+                    _deviceInfo.value = _deviceInfo.value?.copy(firebaseSaved = saved)
+                    return
+                }
+                if (packet.type == PacketType.WIFI_LIST) {
+                    val json = runCatching { JSONObject(packet.jsonPayload) }.getOrNull() ?: return
+                    val listArr = json.optJSONArray("networks") ?: return
+                    val networks = mutableListOf<DiscoveredWifiNetwork>()
+                    for (i in 0 until listArr.length()) {
+                        val obj = listArr.getJSONObject(i)
+                        networks.add(
+                            DiscoveredWifiNetwork(
+                                ssid = obj.optString("ssid"),
+                                rssi = obj.optInt("rssi"),
+                                secure = obj.optBoolean("auth", true)
+                            )
+                        )
+                    }
+                    _wifiNetworks.value = networks.sortedByDescending { it.rssi }
                     return
                 }
                 if (packet.type != PacketType.ACK) return
@@ -754,12 +847,18 @@ class BleConnectionManager(private val context: Context) {
                     if (hasConnectPermission()) {
                         @SuppressLint("MissingPermission")
                         runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
-                        @SuppressLint("MissingPermission")
-                        val mtuRequested = gatt.requestMtu(BleConstants.DEFAULT_MTU)
-                        if (!mtuRequested) discoverServicesOnce(gatt)
+                        
+                        // Small delay before service discovery helps ESP32 stability
                         scope.launch {
-                            delay(MTU_TIMEOUT_MS)
-                            if (generation == connectionGeneration) discoverServicesOnce(gatt)
+                            delay(600) 
+                            if (generation == connectionGeneration) {
+                                @SuppressLint("MissingPermission")
+                                val discoveryStarted = gatt.discoverServices()
+                                if (!discoveryStarted) {
+                                    _protocolStatus.value = BleProtocolStatus(lastError = "Gagal memulai discovery servis")
+                                    _connectionState.value = ConnectionState.ERROR
+                                }
+                            }
                         }
                     }
                 }

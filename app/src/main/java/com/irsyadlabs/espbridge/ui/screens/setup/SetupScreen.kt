@@ -90,8 +90,22 @@ fun SetupScreen(
                                 )
                             }
                             StatusPill(
-                                if (connected) "Linked" else state.bleState.name.lowercase().capitalize(),
-                                if (connected) StatusTone.GOOD else StatusTone.WARN
+                                if (connected) "Linked" else if (state.bleState == ConnectionState.ERROR) "Error" else state.bleState.name.lowercase().capitalize(),
+                                when {
+                                    connected -> StatusTone.GOOD
+                                    state.bleState == ConnectionState.ERROR -> StatusTone.ERROR
+                                    else -> StatusTone.WARN
+                                }
+                            )
+                        }
+                        
+                        if (state.bleProtocolStatus.lastError != null) {
+                            Text(
+                                "STATUS: ${state.bleProtocolStatus.lastError}",
+                                modifier = Modifier.padding(top = 12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = SketchRed
                             )
                         }
                         
@@ -174,7 +188,17 @@ fun SetupScreen(
                             Text(device.name, fontWeight = FontWeight.ExtraBold, color = SketchBorder)
                             Text(device.address, style = MaterialTheme.typography.bodySmall, color = SketchMuted)
                         }
-                        TextButton(onClick = { onConnect(device) }) { Text("PAIR", color = SketchTeal, fontWeight = FontWeight.ExtraBold) }
+                        val isConnecting = state.bleState == ConnectionState.CONNECTING || state.bleState == ConnectionState.DISCOVERING
+                        TextButton(
+                            onClick = { onConnect(device) },
+                            enabled = !isConnecting && !connected
+                        ) { 
+                            Text(
+                                if (isConnecting) "..." else "PAIR", 
+                                color = if (!isConnecting && !connected) SketchTeal else SketchMuted, 
+                                fontWeight = FontWeight.ExtraBold
+                            ) 
+                        }
                     }
                 }
             }

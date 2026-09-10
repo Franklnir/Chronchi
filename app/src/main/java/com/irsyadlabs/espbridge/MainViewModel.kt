@@ -19,6 +19,7 @@ import com.irsyadlabs.espbridge.service.DeviceConnectionService
 import com.irsyadlabs.espbridge.transport.ble.DiscoveredBleDevice
 import com.irsyadlabs.espbridge.transport.ble.BleProtocolStatus
 import com.irsyadlabs.espbridge.transport.ble.ConnectedDeviceInfo
+import com.irsyadlabs.espbridge.transport.ble.DiscoveredWifiNetwork
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,7 @@ data class MainUiState(
     val bleRssi: Int? = null,
     val bleProtocolStatus: BleProtocolStatus = BleProtocolStatus(),
     val connectedDevice: ConnectedDeviceInfo? = null,
+    val wifiNetworks: List<DiscoveredWifiNetwork> = emptyList(),
     val firmwareUpdate: FirmwareUpdateState = FirmwareUpdateState.Idle,
     val credentials: DeviceCredentialsManager.Credentials? = null,
     val busy: Boolean = false,
@@ -77,6 +79,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         message.map { it as Any? },
         initialized.map { it as Any? },
         c.ble.deviceInfo.map { it as Any? },
+        c.ble.wifiNetworks.map { it as Any? },
         c.firmwareUpdates.state.map { it as Any? }
     ) { values ->
         val settings = values[0] as LocalSettings
@@ -92,7 +95,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             bleRssi = values[4] as Int?,
             bleProtocolStatus = values[5] as BleProtocolStatus,
             connectedDevice = values[12] as ConnectedDeviceInfo?,
-            firmwareUpdate = values[13] as FirmwareUpdateState,
+            wifiNetworks = values[13] as List<DiscoveredWifiNetwork>,
+            firmwareUpdate = values[14] as FirmwareUpdateState,
             credentials = values[8] as DeviceCredentialsManager.Credentials?,
             busy = values[9] as Boolean,
             message = values[10] as String?
@@ -207,6 +211,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
     }
 
+    fun forgetFirebase() = viewModelScope.launch {
+        if (c.ble.isConnected()) {
+            c.router.sendClearConfig()
+        }
+    }
+
+    fun sendFirebaseConfig() = viewModelScope.launch {
+        if (c.ble.isConnected()) {
+            c.router.sendFirebaseConfig()
+        }
+    }
+
+    fun checkFirebaseStatus() = viewModelScope.launch {
+        if (c.ble.isConnected()) {
+            c.router.sendFirebaseStatusRequest()
+        }
+    }
+
     fun completeOnboarding() = viewModelScope.launch {
         c.settings.setOnboardingComplete(true)
         startBackgroundServiceIfEnabled()
@@ -245,6 +267,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendSwitchMode(mode: String) {
         c.router.sendSwitchMode(mode)
+    }
+
+    fun scanWifi() {
+        c.router.sendWifiScan()
     }
 
     fun setKeepBackground(enabled: Boolean) = viewModelScope.launch {

@@ -195,12 +195,15 @@ fun PermissionOnboardingScreen(onComplete: () -> Unit) {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                     add(Manifest.permission.BLUETOOTH_SCAN)
                                     add(Manifest.permission.BLUETOOTH_CONNECT)
+                                } else {
+                                    add(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    add(Manifest.permission.ACCESS_COARSE_LOCATION)
                                 }
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     add(Manifest.permission.POST_NOTIFICATIONS)
                                 }
                             }.toTypedArray()
-                            if (permissions.isEmpty()) step++ else bluetoothLauncher.launch(permissions)
+                            bluetoothLauncher.launch(permissions)
                         }
                         2 -> locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
                         3 -> phoneLauncher.launch(Manifest.permission.READ_PHONE_STATE)

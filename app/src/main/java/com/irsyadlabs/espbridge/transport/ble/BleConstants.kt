@@ -34,7 +34,10 @@ enum class PacketType(val code: Byte) {
     FIREBASE_CONFIG(0x12),
     CLEAR_CONFIG(0x13),
     WIFI_CONFIG(0x14),
-    SWITCH_MODE(0x15);
+    SWITCH_MODE(0x15),
+    WIFI_SCAN(0x16),
+    WIFI_LIST(0x17),
+    FIREBASE_STATUS(0x18);
 
     companion object {
         fun fromCode(code: Byte): PacketType? = entries.firstOrNull { it.code == code }

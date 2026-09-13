@@ -10,7 +10,7 @@
 
 Scan QR Code di bawah ini untuk langsung mengunduh file APK versi terbaru dari GitHub:
 
-![Download Chronchi](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://github.com/Franklnir/Chronchi/releases/download/v1.3.1/app-debug.apk)
+![Download Chronchi](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://github.com/Franklnir/Chronchi/releases/download/v1.3.1/Chronchi-v1.3.1-debug.apk)
 
 ## ✨ Fitur Utama
 

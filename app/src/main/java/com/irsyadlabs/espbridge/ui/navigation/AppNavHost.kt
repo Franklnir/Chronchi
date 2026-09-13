@@ -182,6 +182,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                     onCompanionPair = beginCompanionPairing,
                     onScan = viewModel::scanBle,
                     onConnect = viewModel::connect,
+                    onSendWifiConfig = { ssid, password -> viewModel.sendWifiConfig(ssid, password) },
                     onReconnect = viewModel::reconnect,
                     onDisconnect = viewModel::disconnect,
                     onForget = viewModel::forgetDevice,

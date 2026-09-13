@@ -45,6 +45,7 @@ fun SetupScreen(
     onCompanionPair: () -> Unit,
     onScan: () -> Unit,
     onConnect: (DiscoveredBleDevice) -> Unit,
+    onSendWifiConfig: (String, String) -> Unit,
     onReconnect: () -> Unit,
     onDisconnect: () -> Unit,
     onForget: () -> Unit,
@@ -52,7 +53,29 @@ fun SetupScreen(
 ) {
     val clipboard = LocalClipboardManager.current
     var revealSecret by remember { mutableStateOf(false) }
+    var showScanner by remember { mutableStateOf(false) }
     val connected = state.bleState == ConnectionState.CONNECTED
+
+    if (showScanner) {
+        BarcodeScannerDialog(
+            onResult = { result ->
+                showScanner = false
+                // Parse WiFi QR: WIFI:T:WPA;S:ssid;P:password;;
+                if (result.startsWith("WIFI:", ignoreCase = true)) {
+                    val ssid = result.substringAfter("S:").substringBefore(";")
+                    val password = result.substringAfter("P:").substringBefore(";")
+                    if (connected) {
+                        onSendWifiConfig(ssid, password)
+                    } else {
+                        clipboard.setText(AnnotatedString("WiFi: $ssid / $password"))
+                    }
+                } else {
+                    clipboard.setText(AnnotatedString(result))
+                }
+            },
+            onDismiss = { showScanner = false }
+        )
+    }
 
     MainScreenColumn(
         modifier = Modifier.padding(horizontal = UiTokens.HorizontalPadding)
@@ -157,11 +180,20 @@ fun SetupScreen(
             item { SectionHeader("Discovery") }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PrimaryActionButton(
-                        text = "PAIR ANDROID COMPANION",
-                        onClick = onCompanionPair,
-                        color = SketchYellow
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        PrimaryActionButton(
+                            text = "SCAN QR CONFIG",
+                            onClick = { showScanner = true },
+                            modifier = Modifier.weight(1f),
+                            color = SketchPeach
+                        )
+                        PrimaryActionButton(
+                            text = "COMPANION",
+                            onClick = onCompanionPair,
+                            modifier = Modifier.weight(1f),
+                            color = SketchYellow
+                        )
+                    }
                     OutlinedButton(
                         onClick = onScan,
                         modifier = Modifier.fillMaxWidth().height(UiTokens.PrimaryButtonHeight),
@@ -419,6 +451,7 @@ fun SetupScreenPreview() {
         SetupScreen(
             state = previewUiState,
             onMode = {}, onCompanionPair = {}, onScan = {}, onConnect = {},
+            onSendWifiConfig = { _, _ -> },
             onReconnect = {}, onDisconnect = {}, onForget = {}, onRegenerateCredentials = {}
         )
     }

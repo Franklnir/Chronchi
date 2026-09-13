@@ -217,45 +217,26 @@ class BleConnectionManager(private val context: Context) {
         }
     }
 
-    /** Finds only the previously trusted ESP32 and connects as soon as it advertises. */
+    /** 
+     * Uses Android OS native auto-connect to reliably pair with ESP32 in the background.
+     * This is the most robust way to ensure auto-reconnection while the app is minimized.
+     */
     @SuppressLint("MissingPermission")
     fun reconnectTrusted(address: String) {
         if (firmwareUpdateInProgress || isConnected() ||
             _connectionState.value in setOf(
                 ConnectionState.CONNECTING,
                 ConnectionState.DISCOVERING,
-                ConnectionState.SYNCING,
-                ConnectionState.SCANNING
+                ConnectionState.SYNCING
             )
         ) return
-        if (!hasScanPermission()) {
-            reconnect(address)
-            return
-        }
-        disconnect(closeOnly = true)
-        val scanner = adapter?.bluetoothLeScanner ?: return
-        trustedScanAddress = address
-        _connectionState.value = ConnectionState.SCANNING
-        val filters = listOf(
-            ScanFilter.Builder()
-                .setDeviceAddress(address)
-                .build()
-        )
-        val settings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-        scanner.startScan(filters, settings, scanCallback)
-        scope.launch {
-            delay(BleConstants.TRUSTED_SCAN_PERIOD_MS)
-            if (trustedScanAddress.equals(address, ignoreCase = true) &&
-                _connectionState.value == ConnectionState.SCANNING
-            ) {
-                stopScan()
-                // Some phones suppress filtered BLE scan results while the display is off.
-                // A direct cached-GATT attempt keeps reconnection automatic without a UI scan.
-                reconnect(address)
-            }
-        }
+        
+        val adapterRef = adapter
+        if (adapterRef == null || !adapterRef.isEnabled) return
+
+        // Immediately attempt connection with autoConnect=true.
+        // This tells Android OS to monitor for the device and connect whenever it is seen.
+        connect(address, isAutoConnect = true)
     }
 
     private val scanCallback = object : ScanCallback() {

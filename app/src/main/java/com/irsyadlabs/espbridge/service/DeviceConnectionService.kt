@@ -62,42 +62,63 @@ class DeviceConnectionService : Service() {
 
         reconnectJob = scope.launch {
             var cloudWasAvailable = false
-            var reconnectDelayMs = 2_000L
             while (isActive) {
-                val settings = container.settings.settings.first()
-                if (settings.autoConnect && settings.trustedDeviceAddress != null &&
-                    container.ble.bluetoothEnabled() && !container.ble.isConnected() &&
-                    !container.ble.isFirmwareUpdateInProgress()
-                ) {
-                    val currentState = container.ble.connectionState.value
-                    if (currentState == ConnectionState.DISCONNECTED || currentState == ConnectionState.ERROR) {
-                        container.ble.reconnectTrusted(settings.trustedDeviceAddress)
-                        // Exponential backoff for retries: 2s, 4s, 8s... up to 30s
-                        reconnectDelayMs = (reconnectDelayMs * 2).coerceAtMost(30_000L)
-                    }
-                } else if (container.ble.isConnected()) {
-                    reconnectDelayMs = 2_000L // Reset delay when connected
-                }
+                checkAndReconnect()
 
+                val container = EspBridgeApp.instance.container
+                val settings = container.settings.settings.first()
+                
                 container.systemCollector.refresh()
                 val cloudAvailable = settings.cloudSyncEnabled &&
                     settings.connectionMode != ConnectionMode.BLUETOOTH_ONLY &&
                     container.cloud.available()
+                
                 if (cloudAvailable && !cloudWasAvailable) {
                     container.router.fullSync(container.stateHub.state.value)
                 }
                 cloudWasAvailable = cloudAvailable
+                
                 if (settings.selectedSourceIds.contains("location")) {
                     runCatching {
                         container.locationCollector.refresh(settings.selectedSourceIds.contains("weather"))
                     }
                 }
-                delay(if (container.ble.isConnected()) 60_000L else reconnectDelayMs)
+                
+                // If disconnected, check more frequently (every 10s)
+                // If connected, heartbeat every 60s
+                delay(if (container.ble.isConnected()) 60_000L else 10_000L)
             }
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SYNC_NOW) {
+            val container = EspBridgeApp.instance.container
+            scope.launch {
+                container.router.fullSync(container.stateHub.state.value)
+            }
+        }
+        
+        // Trigger immediate check when service is started/restarted
+        scope.launch {
+            checkAndReconnect()
+        }
+        return START_STICKY
+    }
+
+    private suspend fun checkAndReconnect() {
+        val container = EspBridgeApp.instance.container
+        val settings = container.settings.settings.first()
+        if (settings.autoConnect && settings.trustedDeviceAddress != null &&
+            container.ble.bluetoothEnabled() && !container.ble.isConnected() &&
+            !container.ble.isFirmwareUpdateInProgress()
+        ) {
+            val currentState = container.ble.connectionState.value
+            if (currentState == ConnectionState.DISCONNECTED || currentState == ConnectionState.ERROR) {
+                container.ble.reconnectTrusted(settings.trustedDeviceAddress)
+            }
+        }
+    }
 
     override fun onDestroy() {
         reconnectJob?.cancel()
@@ -181,6 +202,16 @@ class DeviceConnectionService : Service() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    null, "SYNC NOW",
+                    PendingIntent.getService(
+                        this, 1,
+                        Intent(this, DeviceConnectionService::class.java).apply { action = ACTION_SYNC_NOW },
+                        PendingIntent.FLAG_IMMUTABLE
+                    )
+                ).build()
+            )
             .build()
     }
 
@@ -193,5 +224,6 @@ class DeviceConnectionService : Service() {
     companion object {
         const val CHANNEL_ID = "espbridge_connection"
         const val NOTIFICATION_ID = 4101
+        const val ACTION_SYNC_NOW = "com.irsyadlabs.espbridge.ACTION_SYNC_NOW"
     }
 }

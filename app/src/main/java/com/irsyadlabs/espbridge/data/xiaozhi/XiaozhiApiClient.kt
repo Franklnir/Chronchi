@@ -10,8 +10,8 @@ import java.net.URL
 import java.net.URLEncoder
 
 class XiaozhiApiClient(
-    private val baseUrl: String = "http://163.61.58.235:8080",
-    private val fallbackUrl: String = "https://irsyadmiler-xiaozhi.hf.space"
+    private val baseUrl: String = "https://xiaozhiscig.biz.id",
+    private val fallbackUrl: String = "http://163.61.58.235:8080"
 ) {
 
     suspend fun login(username: String, password: String): XiaozhiAuthResult = withContext(Dispatchers.IO) {

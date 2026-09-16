@@ -1,21 +1,22 @@
 package com.irsyadlabs.espbridge.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.Wifi
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.irsyadlabs.espbridge.ui.theme.BrandBlue
-import com.irsyadlabs.espbridge.ui.theme.InkBlack
-import com.irsyadlabs.espbridge.ui.theme.PaperWhite
-import com.irsyadlabs.espbridge.ui.theme.SoftBlue
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.irsyadlabs.espbridge.ui.theme.*
 
 sealed class MainDestination(val route: String, val label: String) {
     data object Home : MainDestination("home", "Home")
@@ -24,7 +25,24 @@ sealed class MainDestination(val route: String, val label: String) {
     data object Settings : MainDestination("settings", "Settings")
 }
 
-val mainDestinations = listOf(MainDestination.Home, MainDestination.Setup, MainDestination.WifiConfig, MainDestination.Settings)
+val mainDestinations = listOf(
+    MainDestination.Home,
+    MainDestination.Setup,
+    MainDestination.WifiConfig,
+    MainDestination.Settings
+)
+
+sealed class XiaozhiDestination(val route: String, val label: String) {
+    data object Dashboard : XiaozhiDestination("xiaozhi_dashboard", "Dashboard")
+    data object ChatHistory : XiaozhiDestination("xiaozhi_chat", "Riwayat Chat")
+    data object Profile : XiaozhiDestination("xiaozhi_profile", "Profile")
+}
+
+val xiaozhiDestinations = listOf(
+    XiaozhiDestination.Dashboard,
+    XiaozhiDestination.ChatHistory,
+    XiaozhiDestination.Profile
+)
 
 @Composable
 fun MainBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
@@ -50,6 +68,58 @@ fun MainBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
                     unselectedTextColor = Color.Gray
                 )
             )
+        }
+    }
+}
+
+@Composable
+fun XiaozhiBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(NeoTokens.Cream)
+    ) {
+        // Neo-Brutalist Border Top
+        NavigationBar(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = NeoTokens.BorderWidth, color = NeoTokens.Black),
+            containerColor = NeoTokens.White
+        ) {
+            xiaozhiDestinations.forEach { item ->
+                val selected = currentRoute == item.route
+                val icon = when (item) {
+                    XiaozhiDestination.Dashboard -> Icons.Rounded.Dashboard
+                    XiaozhiDestination.ChatHistory -> Icons.Rounded.Forum
+                    XiaozhiDestination.Profile -> Icons.Rounded.Person
+                }
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { onNavigate(item.route) },
+                    icon = {
+                        Icon(
+                            icon,
+                            contentDescription = item.label,
+                            tint = if (selected) NeoTokens.Black else NeoTokens.Muted
+                        )
+                    },
+                    label = {
+                        Text(
+                            item.label,
+                            fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (selected) NeoTokens.Black else NeoTokens.Muted
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = NeoTokens.Black,
+                        selectedTextColor = NeoTokens.Black,
+                        indicatorColor = NeoTokens.Yellow,
+                        unselectedIconColor = NeoTokens.Muted,
+                        unselectedTextColor = NeoTokens.Muted
+                    )
+                )
+            }
         }
     }
 }

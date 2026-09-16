@@ -15,6 +15,7 @@ import com.irsyadlabs.espbridge.core.util.PermissionUtils
 import com.irsyadlabs.espbridge.data.auth.AuthResult
 import com.irsyadlabs.espbridge.data.local.LocalSettings
 import com.irsyadlabs.espbridge.data.firmware.FirmwareUpdateState
+import com.irsyadlabs.espbridge.data.xiaozhi.*
 import com.irsyadlabs.espbridge.service.DeviceConnectionService
 import com.irsyadlabs.espbridge.transport.ble.DiscoveredBleDevice
 import com.irsyadlabs.espbridge.transport.ble.BleProtocolStatus
@@ -24,15 +25,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
-
 
 data class MainUiState(
     val initialized: Boolean = false,
@@ -50,7 +48,13 @@ data class MainUiState(
     val firmwareUpdate: FirmwareUpdateState = FirmwareUpdateState.Idle,
     val credentials: DeviceCredentialsManager.Credentials? = null,
     val busy: Boolean = false,
-    val message: String? = null
+    val message: String? = null,
+    // Xiaozhi AI state
+    val xiaozhiMcpStatus: XiaozhiMcpStatus = XiaozhiMcpStatus(false, false, "Memuat status MCP"),
+    val xiaozhiRelays: List<SmartHomeRelay> = emptyList(),
+    val xiaozhiChatMessages: List<XiaozhiChatMessage> = emptyList(),
+    val xiaozhiProfile: XiaozhiProfileData? = null,
+    val xiaozhiChatLoading: Boolean = false
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -64,42 +68,98 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val message = MutableStateFlow<String?>(null)
     private val initialized = MutableStateFlow(false)
 
-    @Suppress("UNCHECKED_CAST")
+    // Xiaozhi state flows
+    private val xiaozhiMcpStatus = MutableStateFlow(XiaozhiMcpStatus(false, false, "Memuat status MCP"))
+    private val xiaozhiRelays = MutableStateFlow<List<SmartHomeRelay>>(emptyList())
+    private val xiaozhiChatMessages = MutableStateFlow<List<XiaozhiChatMessage>>(emptyList())
+    private val xiaozhiProfile = MutableStateFlow<XiaozhiProfileData?>(null)
+    private val xiaozhiChatLoading = MutableStateFlow(false)
+
+    private val _xiaozhiDashboardData = MutableStateFlow(XiaozhiDashboardData())
+    val xiaozhiDashboardData: StateFlow<XiaozhiDashboardData> = _xiaozhiDashboardData
+
+    private val _xiaozhiChatHistory = MutableStateFlow(XiaozhiChatHistoryData())
+    val xiaozhiChatHistory: StateFlow<XiaozhiChatHistoryData> = _xiaozhiChatHistory
+
+    private val _xiaozhiDashboardLoading = MutableStateFlow(false)
+    val xiaozhiDashboardLoading: StateFlow<Boolean> = _xiaozhiDashboardLoading
+
+    private val _xiaozhiScanningPersona = MutableStateFlow(false)
+    val xiaozhiScanningPersona: StateFlow<Boolean> = _xiaozhiScanningPersona
+
     val uiState: StateFlow<MainUiState> = combine(
-        c.settings.settings.map { it as Any? },
-        c.stateHub.state.map { it as Any? },
-        c.ble.connectionState.map { it as Any? },
-        c.ble.devices.map { it as Any? },
-        c.ble.rssi.map { it as Any? },
-        c.ble.protocolStatus.map { it as Any? },
-        signedIn.map { it as Any? },
-        email.map { it as Any? },
-        credentials.map { it as Any? },
-        busy.map { it as Any? },
-        message.map { it as Any? },
-        initialized.map { it as Any? },
-        c.ble.deviceInfo.map { it as Any? },
-        c.ble.wifiNetworks.map { it as Any? },
-        c.firmwareUpdates.state.map { it as Any? }
-    ) { values ->
-        val settings = values[0] as LocalSettings
+        combine(
+            combine(
+                c.settings.settings,
+                c.stateHub.state,
+                c.ble.connectionState,
+                c.ble.devices,
+                c.ble.rssi
+            ) { s, ps, cs, dev, rssi ->
+                @Suppress("UNCHECKED_CAST")
+                listOf(s, ps, cs, dev, rssi) as List<Any?>
+            },
+            combine(
+                c.ble.protocolStatus,
+                signedIn,
+                email,
+                credentials
+            ) { proto, si, em, cred ->
+                @Suppress("UNCHECKED_CAST")
+                listOf(proto, si, em, cred) as List<Any?>
+            }
+        ) { a, b -> a + b },
+        combine(
+            combine(
+                busy,
+                message,
+                initialized,
+                c.ble.deviceInfo,
+                c.ble.wifiNetworks
+            ) { b, msg, init, dInfo, wifi ->
+                @Suppress("UNCHECKED_CAST")
+                listOf(b, msg, init, dInfo, wifi) as List<Any?>
+            },
+            combine(
+                c.firmwareUpdates.state,
+                xiaozhiMcpStatus,
+                xiaozhiRelays,
+                xiaozhiChatMessages
+            ) { fw, mcp, rel, chat ->
+                @Suppress("UNCHECKED_CAST")
+                listOf(fw, mcp, rel, chat) as List<Any?>
+            }
+        ) { a, b -> a + b },
+        combine(
+            xiaozhiProfile,
+            xiaozhiChatLoading
+        ) { prof, chatLoad ->
+            listOf(prof, chatLoad)
+        }
+    ) { part1, part2, part3 ->
+        val settings = part1[0] as LocalSettings
         MainUiState(
-            initialized = values[11] as Boolean,
-            signedIn = (values[6] as Boolean) || settings.demoLoggedIn,
-            email = (values[7] as String?) ?: settings.demoEmail,
-            firebaseReady = c.auth.isFirebaseReady(),
             settings = settings,
-            phoneState = values[1] as PhoneState,
-            bleState = values[2] as ConnectionState,
-            bleDevices = values[3] as List<DiscoveredBleDevice>,
-            bleRssi = values[4] as Int?,
-            bleProtocolStatus = values[5] as BleProtocolStatus,
-            connectedDevice = values[12] as ConnectedDeviceInfo?,
-            wifiNetworks = values[13] as List<DiscoveredWifiNetwork>,
-            firmwareUpdate = values[14] as FirmwareUpdateState,
-            credentials = values[8] as DeviceCredentialsManager.Credentials?,
-            busy = values[9] as Boolean,
-            message = values[10] as String?
+            phoneState = part1[1] as PhoneState,
+            bleState = part1[2] as ConnectionState,
+            bleDevices = part1[3] as List<DiscoveredBleDevice>,
+            bleRssi = part1[4] as Int?,
+            bleProtocolStatus = part1[5] as BleProtocolStatus,
+            signedIn = (part1[6] as Boolean) || settings.demoLoggedIn,
+            email = (part1[7] as String?) ?: settings.demoEmail,
+            credentials = part1[8] as DeviceCredentialsManager.Credentials?,
+            busy = part2[0] as Boolean,
+            message = part2[1] as String?,
+            initialized = part2[2] as Boolean,
+            connectedDevice = part2[3] as ConnectedDeviceInfo?,
+            wifiNetworks = part2[4] as List<DiscoveredWifiNetwork>,
+            firmwareUpdate = part2[5] as FirmwareUpdateState,
+            xiaozhiMcpStatus = part2[6] as XiaozhiMcpStatus,
+            xiaozhiRelays = part2[7] as List<SmartHomeRelay>,
+            xiaozhiChatMessages = part2[8] as List<XiaozhiChatMessage>,
+            xiaozhiProfile = part3[0] as XiaozhiProfileData?,
+            xiaozhiChatLoading = part3[1] as Boolean,
+            firebaseReady = c.auth.isFirebaseReady()
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
@@ -122,6 +182,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (initialSettings.onboardingComplete && initialSettings.keepBackgroundConnection) {
                 startBackgroundServiceIfEnabled()
             }
+            // If Xiaozhi mode is already active, refresh dashboard in background
+            if (initialSettings.operatingMode == "XIAOZHI_AI" && initialSettings.xiaozhiAccessToken != null) {
+                refreshXiaozhiDashboard()
+            }
             initialized.value = true
         }
         viewModelScope.launch {
@@ -132,6 +196,251 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Operating Mode Management
+    fun setOperatingMode(mode: String) = viewModelScope.launch {
+        c.settings.setOperatingMode(mode)
+        if (mode == "XIAOZHI_AI") {
+            refreshXiaozhiDashboard()
+        }
+    }
+
+    // Xiaozhi AI Methods
+    fun xiaozhiLogin(username: String, password: String, onResult: (Boolean, String?) -> Unit) = viewModelScope.launch {
+        busy.value = true
+        try {
+            val res = c.xiaozhi.login(username, password)
+            if (res.success && res.accessToken != null) {
+                val mcp = c.xiaozhi.getMcpStatus()
+                xiaozhiMcpStatus.value = mcp
+                if (mcp.connected) {
+                    onResult(true, null)
+                    refreshXiaozhiDashboard()
+                } else {
+                    onResult(true, "MCP_REQUIRED")
+                }
+            } else {
+                onResult(false, res.message.ifBlank { "Login gagal. Periksa username dan password." })
+            }
+        } catch (e: Exception) {
+            onResult(false, e.localizedMessage ?: "Gagal terhubung ke server.")
+        } finally {
+            busy.value = false
+        }
+    }
+
+    fun xiaozhiRegister(username: String, password: String, onResult: (Boolean, String?) -> Unit) = viewModelScope.launch {
+        busy.value = true
+        try {
+            val res = c.xiaozhi.register(username, password)
+            if (res.success && res.accessToken != null) {
+                onResult(true, null)
+            } else {
+                onResult(false, res.message.ifBlank { "Registrasi gagal." })
+            }
+        } catch (e: Exception) {
+            onResult(false, e.localizedMessage ?: "Gagal terhubung ke server.")
+        } finally {
+            busy.value = false
+        }
+    }
+
+    fun xiaozhiSaveAndConnectMcp(
+        mcpToken: String,
+        onUpdate: (XiaozhiMcpStatus) -> Unit,
+        onDone: (Boolean) -> Unit
+    ) = viewModelScope.launch {
+        val saveRes = c.xiaozhi.saveMcpToken(mcpToken)
+        if (saveRes.isFailure) {
+            onDone(false)
+            return@launch
+        }
+        val connected = c.xiaozhi.pollMcpConnection { status ->
+            xiaozhiMcpStatus.value = status
+            onUpdate(status)
+        }
+        if (connected) {
+            refreshXiaozhiDashboard()
+        }
+        onDone(connected)
+    }
+
+    fun refreshXiaozhiDashboard() = viewModelScope.launch {
+        _xiaozhiDashboardLoading.value = true
+        try {
+            c.xiaozhi.getDashboard().onSuccess { data ->
+                _xiaozhiDashboardData.value = data
+                xiaozhiMcpStatus.value = data.mcpStatus
+            }
+            c.xiaozhi.getSmartHomeRelays().onSuccess { relays ->
+                xiaozhiRelays.value = relays
+            }
+        } catch (_: Exception) {} finally {
+            _xiaozhiDashboardLoading.value = false
+        }
+    }
+
+    fun xiaozhiCreateMaterial(
+        title: String,
+        category: String,
+        content: String,
+        keywords: String = "",
+        apiUrl: String = "",
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.createMaterial(title, category, content, keywords, apiUrl).fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiUpdateMaterial(
+        id: Int,
+        title: String,
+        category: String,
+        content: String,
+        keywords: String = "",
+        apiUrl: String = "",
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.updateMaterial(id, title, category, content, keywords, apiUrl).fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiDeleteMaterial(
+        id: Int,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.deleteMaterial(id).fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiCreateCategory(
+        name: String,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.createCategory(name).fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiDeleteCategory(
+        catId: Int,
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.deleteCategory(catId).fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiReconnectMcp(
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.reconnectMcp().fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun xiaozhiDeleteMcpToken(
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.deleteMcpToken().fold(
+            onSuccess = {
+                refreshXiaozhiDashboard()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun loadXiaozhiChatHistory(query: String = "", date: String = "") = viewModelScope.launch {
+        xiaozhiChatLoading.value = true
+        try {
+            c.xiaozhi.getChatHistory(query, 100, date).onSuccess { data ->
+                _xiaozhiChatHistory.value = data
+                xiaozhiChatMessages.value = data.items
+            }
+        } finally {
+            xiaozhiChatLoading.value = false
+        }
+    }
+
+    fun xiaozhiClearChatHistory(
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        c.xiaozhi.clearChatHistory().fold(
+            onSuccess = {
+                loadXiaozhiChatHistory()
+                onResult(true, null)
+            },
+            onFailure = { onResult(false, it.localizedMessage) }
+        )
+    }
+
+    fun loadXiaozhiProfile() = viewModelScope.launch {
+        c.xiaozhi.getProfileData().onSuccess { profile ->
+            xiaozhiProfile.value = profile
+        }
+    }
+
+    fun xiaozhiScanPersona(
+        onResult: (Boolean, String?) -> Unit = { _, _ -> }
+    ) = viewModelScope.launch {
+        _xiaozhiScanningPersona.value = true
+        try {
+            c.xiaozhi.scanPersona().fold(
+                onSuccess = { persona ->
+                    val current = xiaozhiProfile.value
+                    if (current != null) {
+                        xiaozhiProfile.value = current.copy(personaAnalysis = persona)
+                    }
+                    onResult(true, null)
+                },
+                onFailure = { onResult(false, it.localizedMessage) }
+            )
+        } finally {
+            _xiaozhiScanningPersona.value = false
+        }
+    }
+
+    fun xiaozhiToggleRelay(channel: Int, state: Boolean) = viewModelScope.launch {
+        c.xiaozhi.setRelay(channel, state).onSuccess {
+            val current = xiaozhiRelays.value.map {
+                if (it.channel == channel) it.copy(state = state) else it
+            }
+            xiaozhiRelays.value = current
+        }
+    }
+
+    fun xiaozhiLogout() = viewModelScope.launch {
+        c.xiaozhi.logout()
+    }
+
+        // Existing Chronchi BLE / Auth Methods
     fun login(emailValue: String, password: String) = viewModelScope.launch {
         busy.value = true
         message.value = null
@@ -199,10 +508,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun logout() = viewModelScope.launch {
-        // Send clear config command to ESP32 before disconnecting
         if (c.ble.isConnected()) {
             c.router.sendClearConfig()
-            kotlinx.coroutines.delay(500) // Give time for BLE message to be sent
+            kotlinx.coroutines.delay(500)
         }
         c.auth.logout()
         signedIn.value = false
@@ -218,26 +526,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendFirebaseConfig() = viewModelScope.launch {
-        if (c.ble.isConnected()) {
-            c.router.sendFirebaseConfig()
-        }
+        val creds = credentials.value ?: return@launch
+        c.router.sendFirebaseConfig()
+    }
+
+    fun scanWifi() = viewModelScope.launch {
+        c.router.sendWifiScan()
     }
 
     fun checkFirebaseStatus() = viewModelScope.launch {
-        if (c.ble.isConnected()) {
-            c.router.sendFirebaseStatusRequest()
-        }
+        c.router.sendFirebaseStatusRequest()
+    }
+
+    fun scanBle() = viewModelScope.launch {
+        c.ble.startScan()
+    }
+
+    fun connect(device: DiscoveredBleDevice) = viewModelScope.launch {
+        c.settings.setTrustedDevice(device.address, device.name)
+        c.ble.connect(device.address)
+        startBackgroundServiceIfEnabled()
+    }
+
+    fun reconnect() = viewModelScope.launch {
+        val s = c.settings.settings.first()
+        val address = s.trustedDeviceAddress ?: return@launch
+        c.ble.reconnect(address)
+        startBackgroundServiceIfEnabled()
+    }
+
+    fun disconnect() = viewModelScope.launch {
+        c.ble.disconnect()
+        getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
+    }
+
+    fun forgetDevice() = viewModelScope.launch {
+        c.settings.setTrustedDevice(null, null)
+        c.ble.disconnect()
+        getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
     }
 
     fun completeOnboarding() = viewModelScope.launch {
         c.settings.setOnboardingComplete(true)
         startBackgroundServiceIfEnabled()
-        c.systemCollector.refresh()
-        runCatching { c.locationCollector.refresh(true) }
     }
 
-    fun setSourceEnabled(id: String, enabled: Boolean) = viewModelScope.launch {
-        c.settings.setSourceEnabled(id, enabled)
+    fun setSourceEnabled(sourceId: String, enabled: Boolean) = viewModelScope.launch {
+        c.settings.setSourceEnabled(sourceId, enabled)
     }
 
     fun setConnectionMode(mode: ConnectionMode) = viewModelScope.launch {
@@ -246,31 +581,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAutoConnect(enabled: Boolean) = viewModelScope.launch {
         c.settings.setAutoConnect(enabled)
-        if (enabled) startBackgroundServiceIfEnabled()
     }
 
     fun setCloudSync(enabled: Boolean) = viewModelScope.launch {
         c.settings.setCloudSyncEnabled(enabled)
-    }
-
-    fun setAppTheme(theme: AppTheme) = viewModelScope.launch {
-        c.settings.setAppTheme(theme)
-    }
-
-    fun setFirebaseSecret(secret: String) = viewModelScope.launch {
-        c.settings.setFirebaseDatabaseSecret(secret)
-    }
-
-    fun sendWifiConfig(ssid: String, password: String) {
-        c.router.sendWifiConfig(ssid, password)
-    }
-
-    fun sendSwitchMode(mode: String) {
-        c.router.sendSwitchMode(mode)
-    }
-
-    fun scanWifi() {
-        c.router.sendWifiScan()
     }
 
     fun setKeepBackground(enabled: Boolean) = viewModelScope.launch {
@@ -279,46 +593,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         else getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
     }
 
-    fun scanBle() = c.ble.startScan()
-    fun stopBleScan() = c.ble.stopScan()
-
-    fun connect(device: DiscoveredBleDevice) = viewModelScope.launch {
-        c.ble.connect(device.address)
-        val verifiedDevice = withTimeoutOrNull(30_000L) {
-            c.ble.deviceInfo.first { it != null }
-        }
-        if (verifiedDevice != null) {
-            c.settings.setTrustedDevice(device.address, device.name)
-            c.companionAssociation.startObservingPresence(device.address)
-            startBackgroundServiceIfEnabled()
-        } else {
-            c.ble.disconnect(closeOnly = true)
-            message.value = "Pairing ESP32 belum selesai. Coba hubungkan kembali."
-        }
+    fun setAppTheme(theme: AppTheme) = viewModelScope.launch {
+        c.settings.setAppTheme(theme)
     }
 
-    fun disconnect() = c.ble.disconnect()
-
-    fun forgetDevice() = viewModelScope.launch {
-        val address = uiState.value.settings.trustedDeviceAddress
-        // Send clear config command to ESP32 before disconnecting
-        if (c.ble.isConnected()) {
-            c.router.sendClearConfig()
-            kotlinx.coroutines.delay(500) // Give time for BLE message to be sent
-        }
-        c.ble.disconnect()
-        if (address != null) c.companionAssociation.disassociate(address)
-        c.settings.setTrustedDevice(null, null)
-    }
-
-    fun reconnect() {
-        val address = uiState.value.settings.trustedDeviceAddress ?: return
-        c.ble.reconnectTrusted(address)
-    }
-
-    fun refreshPhoneState() {
+    fun refreshPhoneState() = viewModelScope.launch {
         c.systemCollector.refresh()
-        viewModelScope.launch { runCatching { c.locationCollector.refresh(true) } }
     }
 
     fun regenerateCredentials() = viewModelScope.launch {
@@ -326,35 +606,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun checkFirmwareUpdate() = viewModelScope.launch {
-        c.firmwareUpdates.check(c.ble.deviceInfo.value)
+        val info = uiState.value.connectedDevice ?: return@launch
+        c.firmwareUpdates.check(info)
     }
 
     fun installFirmwareUpdate() = viewModelScope.launch {
         c.firmwareUpdates.install()
     }
 
+    fun showMessage(msg: String) {
+        message.value = msg
+    }
+
     fun clearMessage() {
         message.value = null
     }
 
-    fun showMessage(value: String) {
-        message.value = value
+    fun sendSwitchMode(mode: String) = viewModelScope.launch {
+        c.router.sendSwitchMode(mode)
     }
 
-    private suspend fun registerCloudDeviceIfAvailable() {
-        val creds = credentials.value ?: c.credentials.getOrCreate().also { credentials.value = it }
-        if (c.cloud.available()) runCatching { c.cloud.registerDevice(creds.deviceId, "ESP Display") }
+    fun sendWifiConfig(ssid: String, pass: String) = viewModelScope.launch {
+        c.router.sendWifiConfig(ssid, pass)
     }
 
-    private fun registerCloudDeviceInBackground() {
-        viewModelScope.launch { registerCloudDeviceIfAvailable() }
+    private fun registerCloudDeviceInBackground() = viewModelScope.launch {
+        val creds = credentials.value ?: return@launch
+        val uid = c.auth.currentUid() ?: return@launch
+        c.cloud.registerDevice(uid, creds.deviceId)
     }
 
     private fun startBackgroundServiceIfEnabled() {
-        val context = getApplication<Application>()
-        if (!PermissionUtils.bluetoothGranted(context)) return
-        runCatching {
-            ContextCompat.startForegroundService(context, Intent(context, DeviceConnectionService::class.java))
-        }
+        if (!PermissionUtils.bluetoothGranted(getApplication())) return
+        val intent = Intent(getApplication(), DeviceConnectionService::class.java)
+        runCatching { ContextCompat.startForegroundService(getApplication(), intent) }
     }
 }

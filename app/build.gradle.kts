@@ -39,8 +39,8 @@ android {
         applicationId = "com.irsyadlabs.espbridge"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.3.1"
+        versionCode = 7
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -100,7 +100,7 @@ android {
     applicationVariants.all {
         outputs.all {
             val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            output.outputFileName = "Chronchi-v${defaultConfig.versionName}-${name}.apk"
+            output.outputFileName = "Xichi-v${defaultConfig.versionName}-${name}.apk"
         }
     }
 }

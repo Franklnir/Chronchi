@@ -7,7 +7,8 @@ data class XiaozhiUser(
     val uiTheme: String = "neo",
     val createdAt: String = "",
     val googleId: String? = null,
-    val googleEmail: String? = null
+    val googleEmail: String? = null,
+    val registeredWithGoogle: Boolean = false
 )
 
 data class XiaozhiAuthResult(

@@ -30,12 +30,10 @@ fun XiaozhiChatHistoryScreen(
     chatData: XiaozhiChatHistoryData,
     isLoading: Boolean = false,
     onSearch: (query: String, date: String) -> Unit,
-    onClearHistory: () -> Unit,
     onRefresh: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedDate by remember { mutableStateOf("") }
-    var showClearConfirm by remember { mutableStateOf(false) }
 
     val filteredMessages = remember(chatData.items, searchQuery, selectedDate) {
         chatData.items.filter { item ->
@@ -64,8 +62,8 @@ fun XiaozhiChatHistoryScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Riwayat Xiaozhi",
-                    fontSize = 13.sp,
+                    text = "Riwayat Percakapan",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeoTokens.Muted
                 )
@@ -76,43 +74,66 @@ fun XiaozhiChatHistoryScreen(
                     color = NeoTokens.Black
                 )
                 Text(
-                    text = "Percakapan terbaru dari MCP. Filter per hari atau cari kata kunci.",
-                    fontSize = 12.sp,
-                    color = NeoTokens.Muted
+                    text = "Percakapan dari ESP32 Xiaozhi. Arsip riwayat tersimpan permanen.",
+                    fontSize = 13.sp,
+                    color = NeoTokens.Dark
                 )
             }
             IconButton(
                 onClick = onRefresh,
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(NeoTokens.White, RoundedCornerShape(10.dp))
-                    .border(NeoTokens.BorderWidth, NeoTokens.Black, RoundedCornerShape(10.dp))
+                    .size(44.dp)
+                    .background(NeoTokens.White, RoundedCornerShape(12.dp))
+                    .border(NeoTokens.BorderWidth, NeoTokens.Black, RoundedCornerShape(12.dp))
             ) {
                 Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", tint = NeoTokens.Black)
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
 
-        // Status Pill
+        // Status Indicators Row (MCP & Permanent Archive)
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(
-                    if (chatData.mcpStatus.connected) NeoTokens.MintLight else NeoTokens.Gray.copy(alpha = 0.4f),
-                    RoundedCornerShape(99.dp)
-                )
-                .border(2.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            NeoPulseIndicator(active = chatData.mcpStatus.connected)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = if (chatData.mcpStatus.connected) "MCP Terhubung" else "MCP Belum Aktif",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = NeoTokens.Dark
-            )
+            // MCP Status Pill
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(
+                        if (chatData.mcpStatus.connected) NeoTokens.MintLight else NeoTokens.Gray.copy(alpha = 0.4f),
+                        RoundedCornerShape(99.dp)
+                    )
+                    .border(2.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                NeoPulseIndicator(active = chatData.mcpStatus.connected)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = if (chatData.mcpStatus.connected) "MCP Terhubung" else "MCP Belum Aktif",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = NeoTokens.Dark
+                )
+            }
+
+            // Permanent Archive Pill
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .background(Color(0xFFFEF3C7), RoundedCornerShape(99.dp))
+                    .border(2.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "🔒 Arsip Permanen",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color(0xFF92400E)
+                )
+            }
         }
 
         Spacer(Modifier.height(14.dp))
@@ -141,7 +162,7 @@ fun XiaozhiChatHistoryScreen(
                 modifier = Modifier.weight(1f)
             )
             ChatStatCard(
-                title = "Filter",
+                title = "Filter Tanggal",
                 value = if (selectedDate.isNotBlank()) formatRelDate(selectedDate) else "Semua",
                 bgColor = NeoTokens.Lavender,
                 modifier = Modifier.weight(1f)
@@ -157,20 +178,21 @@ fun XiaozhiChatHistoryScreen(
                 searchQuery = it
                 onSearch(it, selectedDate)
             },
-            placeholder = "Cari chat percakapan...",
+            placeholder = "Cari kata kunci percakapan...",
             label = "Pencarian Chat"
         )
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-        // Action Buttons Row
+        // Action Buttons Row (Semua Hari & Permanent info)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.weight(1f)) {
                 NeoButton(
-                    text = "SEMUA HARI",
+                    text = "TAMPILKAN SEMUA HARI",
                     onClick = {
                         selectedDate = ""
                         searchQuery = ""
@@ -178,16 +200,7 @@ fun XiaozhiChatHistoryScreen(
                     },
                     color = if (selectedDate.isBlank()) NeoTokens.Yellow else NeoTokens.White,
                     textColor = NeoTokens.Black,
-                    modifier = Modifier.height(40.dp)
-                )
-            }
-            Box(modifier = Modifier.weight(1f)) {
-                NeoButton(
-                    text = "HAPUS SEMUA",
-                    onClick = { showClearConfirm = true },
-                    color = NeoTokens.Coral,
-                    textColor = NeoTokens.White,
-                    modifier = Modifier.height(40.dp)
+                    modifier = Modifier.height(44.dp)
                 )
             }
         }
@@ -200,9 +213,8 @@ fun XiaozhiChatHistoryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // All pill
                 DateFilterChip(
                     label = "Semua (${chatData.total})",
                     isSelected = selectedDate.isBlank(),
@@ -224,7 +236,7 @@ fun XiaozhiChatHistoryScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
         }
 
         // ── 5. Chat Thread LazyColumn ──
@@ -238,18 +250,22 @@ fun XiaozhiChatHistoryScreen(
                     .border(NeoTokens.BorderWidth, NeoTokens.Black, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("💬", fontSize = 36.sp)
-                    Spacer(Modifier.height(8.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Text("💬", fontSize = 42.sp)
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "Belum ada riwayat chat.",
-                        fontSize = 14.sp,
+                        text = "Belum ada percakapan ditemukan.",
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeoTokens.Dark
                     )
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Mulai mengobrol dengan Xiaozhi di ESP32 Anda.",
-                        fontSize = 12.sp,
+                        text = "Bicara dengan Xiaozhi di perangkat ESP32 Anda untuk mulai merekam obrolan.",
+                        fontSize = 13.sp,
                         color = NeoTokens.Muted
                     )
                 }
@@ -259,7 +275,7 @@ fun XiaozhiChatHistoryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(filteredMessages, key = { it.id ?: it.hashCode() }) { msg ->
@@ -268,36 +284,6 @@ fun XiaozhiChatHistoryScreen(
             }
         }
     }
-
-    // Clear History Confirmation
-    if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            title = { Text("Hapus Semua Riwayat?", fontWeight = FontWeight.Black) },
-            text = { Text("Semua rekaman riwayat obrolan Xiaozhi akan dihapus secara permanen.") },
-            confirmButton = {
-                NeoButton(
-                    text = "YA, HAPUS",
-                    onClick = {
-                        onClearHistory()
-                        showClearConfirm = false
-                    },
-                    color = NeoTokens.Coral,
-                    textColor = NeoTokens.White
-                )
-            },
-            dismissButton = {
-                NeoButton(
-                    text = "BATAL",
-                    onClick = { showClearConfirm = false },
-                    color = NeoTokens.Gray,
-                    textColor = NeoTokens.Black
-                )
-            },
-            containerColor = NeoTokens.Cream,
-            shape = RoundedCornerShape(16.dp)
-        )
-    }
 }
 
 @Composable
@@ -305,19 +291,19 @@ private fun ChatStatCard(title: String, value: String, bgColor: Color, modifier:
     NeoCard(
         modifier = modifier,
         backgroundColor = bgColor,
-        contentPadding = PaddingValues(10.dp)
+        contentPadding = PaddingValues(12.dp)
     ) {
         Column {
             Text(
                 text = title,
-                fontSize = 11.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = NeoTokens.Muted
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = value,
-                fontSize = 18.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 color = NeoTokens.Black,
                 maxLines = 1
@@ -334,14 +320,14 @@ private fun DateFilterChip(label: String, isSelected: Boolean, onClick: () -> Un
                 if (isSelected) NeoTokens.Yellow else NeoTokens.White,
                 RoundedCornerShape(99.dp)
             )
-            .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
+            .border(2.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Black,
             color = NeoTokens.Black
         )
     }
@@ -357,7 +343,7 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                     .fillMaxWidth()
                     .padding(end = 24.dp),
                 backgroundColor = Color(0xFFE0F2FE), // Soft sky-blue
-                contentPadding = PaddingValues(12.dp)
+                contentPadding = PaddingValues(14.dp)
             ) {
                 Column {
                     Row(
@@ -366,27 +352,28 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "User",
-                            fontSize = 12.sp,
+                            text = "Pengguna",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = NeoTokens.Blue
                         )
                         Text(
                             text = formatTime(item.createdAt),
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
                             color = NeoTokens.Muted
                         )
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = uMsg,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         color = NeoTokens.Black,
-                        lineHeight = 18.sp
+                        lineHeight = 22.sp
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
         }
 
         // AI Message Bubble
@@ -397,7 +384,7 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                     .fillMaxWidth()
                     .padding(start = 24.dp),
                 backgroundColor = NeoTokens.White,
-                contentPadding = PaddingValues(12.dp)
+                contentPadding = PaddingValues(14.dp)
             ) {
                 Column {
                     Row(
@@ -406,32 +393,33 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🤖", fontSize = 12.sp)
-                            Spacer(Modifier.width(4.dp))
+                            Text("🤖", fontSize = 14.sp)
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = if (item.toolName != null) "Xiaozhi AI (${item.toolName})" else "Xiaozhi AI",
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeoTokens.Emerald
                             )
                         }
                         Text(
                             text = formatTime(item.createdAt),
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
                             color = NeoTokens.Muted
                         )
                     }
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = aiAnswer,
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         color = NeoTokens.Dark,
-                        lineHeight = 18.sp
+                        lineHeight = 22.sp
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "Content generated by AI",
-                        fontSize = 9.sp,
+                        text = "Respons Otomatis AI",
+                        fontSize = 11.sp,
                         color = NeoTokens.Muted,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -444,7 +432,7 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                     .fillMaxWidth()
                     .padding(start = 24.dp),
                 backgroundColor = NeoTokens.MintLight,
-                contentPadding = PaddingValues(10.dp)
+                contentPadding = PaddingValues(12.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -452,14 +440,14 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tool Call: ${item.toolName}",
-                        fontSize = 11.sp,
+                        text = "Eksekusi Alat: ${item.toolName}",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeoTokens.Dark
                     )
                     Text(
                         text = formatTime(item.createdAt),
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         color = NeoTokens.Muted
                     )
                 }
@@ -468,12 +456,14 @@ private fun ChatTurnItem(item: XiaozhiChatMessage) {
     }
 }
 
-private fun formatTime(iso: String): String {
-    if (iso.length < 16) return iso
-    return iso.substring(11, 16)
+private fun formatRelDate(dateStr: String): String {
+    return if (dateStr.length >= 10) dateStr.substring(5, 10) else dateStr
 }
 
-private fun formatRelDate(dateStr: String): String {
-    if (dateStr.length < 10) return dateStr
-    return dateStr.substring(5) // e.g. "09-16"
+private fun formatTime(dateTimeStr: String): String {
+    return if (dateTimeStr.length >= 16) {
+        dateTimeStr.substring(11, 16)
+    } else {
+        dateTimeStr
+    }
 }

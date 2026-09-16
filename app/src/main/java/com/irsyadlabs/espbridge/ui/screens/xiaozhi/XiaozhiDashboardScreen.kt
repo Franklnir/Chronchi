@@ -75,10 +75,12 @@ fun XiaozhiDashboardScreen(
     var deletingMaterialId by remember { mutableStateOf<Int?>(null) }
     var deletingCategoryId by remember { mutableStateOf<Int?>(null) }
 
-    // Default category if none selected
+    // Default category if none selected or if previously selected category was deleted
     LaunchedEffect(dashboardData.categories) {
-        if (newCategory.isBlank() && dashboardData.categories.isNotEmpty()) {
-            newCategory = dashboardData.categories.first().name
+        if (dashboardData.categories.isNotEmpty()) {
+            if (newCategory.isBlank() || dashboardData.categories.none { it.name.equals(newCategory, ignoreCase = true) }) {
+                newCategory = dashboardData.categories.first().name
+            }
         }
     }
 
@@ -100,19 +102,19 @@ fun XiaozhiDashboardScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Halo, ${dashboardData.user.username.ifBlank { "Pengguna" }}",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeoTokens.Muted
                 )
                 Text(
                     text = "Dashboard Xiaozhi",
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Black,
                     color = NeoTokens.Black
                 )
                 Text(
                     text = "Kelola materi, catatan, dan data API realtime untuk Xiaozhi.",
-                    fontSize = 12.sp,
+                    fontSize = 14.sp,
                     color = NeoTokens.Muted
                 )
             }
@@ -145,7 +147,7 @@ fun XiaozhiDashboardScreen(
             Spacer(Modifier.width(8.dp))
             Text(
                 text = "Knowledge base aktif",
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = NeoTokens.Dark
             )
@@ -170,13 +172,13 @@ fun XiaozhiDashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "PERHATIAN: ENDPOINT MCP BELUM TERHUBUNG",
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = NeoTokens.Black
                         )
                         Text(
                             text = "Asisten suara Xiaozhi belum dapat membaca materi atau mengontrol perangkat hingga endpoint MCP Anda terhubung.",
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             color = NeoTokens.Dark
                         )
                     }
@@ -234,7 +236,7 @@ fun XiaozhiDashboardScreen(
                 )
                 Text(
                     text = "Kuota yang ditetapkan admin untuk akun ini.",
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     color = NeoTokens.Muted
                 )
                 Spacer(Modifier.height(10.dp))
@@ -272,13 +274,13 @@ fun XiaozhiDashboardScreen(
                     Column {
                         Text(
                             text = "Koneksi XiaoZhi",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                             color = NeoTokens.Black
                         )
                         Text(
                             text = "Endpoint MCP yang dipakai XiaoZhi.",
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             color = NeoTokens.Muted
                         )
                     }
@@ -316,7 +318,7 @@ fun XiaozhiDashboardScreen(
                     Text(
                         text = if (dashboardData.mcpStatus.tokenSaved) dashboardData.mcpStatus.statusText
                         else "Endpoint MCP belum tersimpan.",
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = NeoTokens.Black
                     )
@@ -391,13 +393,13 @@ fun XiaozhiDashboardScreen(
                     Column {
                         Text(
                             text = "Tambah Materi",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                             color = NeoTokens.Black
                         )
                         Text(
                             text = "Manual atau hubungkan endpoint API realtime.",
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             color = NeoTokens.Muted
                         )
                     }
@@ -421,7 +423,7 @@ fun XiaozhiDashboardScreen(
                         Spacer(Modifier.height(10.dp))
                         Text(
                             text = "Kategori",
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeoTokens.Black
                         )
@@ -450,7 +452,7 @@ fun XiaozhiDashboardScreen(
                                 ) {
                                     Text(
                                         text = cat.name,
-                                        fontSize = 12.sp,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = NeoTokens.Black
                                     )
@@ -472,7 +474,7 @@ fun XiaozhiDashboardScreen(
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 text = "Sumber API Realtime (Live JSON)",
-                                fontSize = 12.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Black
                             )
@@ -588,7 +590,7 @@ fun XiaozhiDashboardScreen(
                 ) {
                     Text(
                         text = cat,
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeoTokens.Black
                     )
@@ -619,7 +621,7 @@ fun XiaozhiDashboardScreen(
             ) {
                 Text(
                     text = "Belum ada data materi yang sesuai.",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     color = NeoTokens.Muted
                 )
             }
@@ -697,11 +699,11 @@ fun XiaozhiDashboardScreen(
                         ) {
                             Text(
                                 text = cat.name,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Black
                             )
-                            if (!cat.name.equals("data dari api", ignoreCase = true)) {
+                            if (!cat.name.trim().equals("data dari api", ignoreCase = true)) {
                                 IconButton(
                                     onClick = { deletingCategoryId = cat.id },
                                     modifier = Modifier.size(24.dp)
@@ -716,7 +718,7 @@ fun XiaozhiDashboardScreen(
                             } else {
                                 Text(
                                     text = "Permanent",
-                                    fontSize = 10.sp,
+                                    fontSize = 14.sp,
                                     color = NeoTokens.Muted
                                 )
                             }
@@ -906,7 +908,7 @@ private fun StatCard(title: String, value: String, bgColor: Color, modifier: Mod
         Column {
             Text(
                 text = title,
-                fontSize = 11.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 color = NeoTokens.Muted
             )
@@ -931,7 +933,7 @@ private fun QuotaChip(label: String) {
     ) {
         Text(
             text = label,
-            fontSize = 11.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = NeoTokens.Black
         )
@@ -965,7 +967,7 @@ private fun MaterialCard(
                 }
                 Text(
                     text = "ID #${material.id}",
-                    fontSize = 10.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeoTokens.Muted
                 )
@@ -975,7 +977,7 @@ private fun MaterialCard(
 
             Text(
                 text = material.title,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Black,
                 color = NeoTokens.Black
             )
@@ -983,7 +985,7 @@ private fun MaterialCard(
             if (material.keywords.isNotBlank()) {
                 Text(
                     text = "Kata Kunci: ${material.keywords}",
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     color = NeoTokens.Muted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -995,7 +997,7 @@ private fun MaterialCard(
             if (material.sourceType == "api_live" && material.apiLabel.isNotBlank()) {
                 Text(
                     text = "Endpoint: ${material.apiLabel}",
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeoTokens.Blue
                 )
@@ -1003,7 +1005,7 @@ private fun MaterialCard(
 
             Text(
                 text = material.content,
-                fontSize = 12.sp,
+                fontSize = 14.sp,
                 color = NeoTokens.Dark,
                 maxLines = if (isExpanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis
@@ -1012,7 +1014,7 @@ private fun MaterialCard(
             if (material.content.length > 120) {
                 Text(
                     text = if (isExpanded) "Tampilkan lebih sedikit" else "Baca selengkapnya...",
-                    fontSize = 11.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeoTokens.Blue,
                     modifier = Modifier

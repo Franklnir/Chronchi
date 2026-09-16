@@ -36,6 +36,8 @@ fun XiaozhiProfileScreen(
     profileData: XiaozhiProfileData?,
     isScanningPersona: Boolean = false,
     onScanPersona: () -> Unit,
+    onLinkGoogle: () -> Unit,
+    onUnlinkGoogle: () -> Unit,
     onSwitchToChronchi: () -> Unit,
     onLogout: () -> Unit,
     onRefresh: () -> Unit
@@ -46,6 +48,7 @@ fun XiaozhiProfileScreen(
     var toolSearchQuery by remember { mutableStateOf("") }
     var selectedToolCategory by remember { mutableStateOf("all") }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showUnlinkGoogleConfirm by remember { mutableStateOf(false) }
 
     val data = profileData ?: XiaozhiProfileData()
     val persona = data.personaAnalysis
@@ -85,28 +88,29 @@ fun XiaozhiProfileScreen(
                 // Avatar circle
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(68.dp)
                         .background(NeoTokens.Yellow, CircleShape)
                         .border(NeoTokens.BorderWidth, NeoTokens.Black, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = user.username.take(1).uppercase().ifBlank { "U" },
-                        fontSize = 28.sp,
+                        fontSize = 30.sp,
                         fontWeight = FontWeight.Black,
                         color = NeoTokens.Black
                     )
                 }
 
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(16.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = user.username.ifBlank { "Pengguna" },
-                        fontSize = 20.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         color = NeoTokens.Black
                     )
+                    Spacer(Modifier.height(4.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -117,8 +121,8 @@ fun XiaozhiProfileScreen(
                         )
                         if (user.createdAt.isNotBlank()) {
                             Text(
-                                text = "Sejak ${user.createdAt.take(10)}",
-                                fontSize = 11.sp,
+                                text = "Bergabung ${user.createdAt.take(10)}",
+                                fontSize = 12.sp,
                                 color = NeoTokens.Muted
                             )
                         }
@@ -143,18 +147,18 @@ fun XiaozhiProfileScreen(
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🧠", fontSize = 16.sp)
+                            Text("🧠", fontSize = 18.sp)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Karakter & Persona AI",
-                                fontSize = 15.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeoTokens.Black
                             )
                         }
                         Text(
                             text = "RAG Vector Profiling Otomatis",
-                            fontSize = 11.sp,
+                            fontSize = 13.sp,
                             color = NeoTokens.Muted
                         )
                     }
@@ -170,25 +174,25 @@ fun XiaozhiProfileScreen(
                         shape = RoundedCornerShape(8.dp),
                         border = androidx.compose.foundation.BorderStroke(2.dp, NeoTokens.Black),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp)
+                        modifier = Modifier.height(38.dp)
                     ) {
                         Icon(
                             Icons.Rounded.Refresh,
                             contentDescription = "Scan",
                             modifier = Modifier
-                                .size(16.dp)
+                                .size(18.dp)
                                 .then(if (isScanningPersona) Modifier.rotate(spinAngle) else Modifier)
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = if (isScanningPersona) "Scanning..." else "Scan Ulang",
-                            fontSize = 11.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -199,13 +203,13 @@ fun XiaozhiProfileScreen(
                         modifier = Modifier
                             .background(NeoTokens.MintLight, RoundedCornerShape(99.dp))
                             .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         NeoPulseIndicator(active = true)
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(
                             text = "Deteksi Otomatis",
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeoTokens.Dark
                         )
@@ -215,20 +219,20 @@ fun XiaozhiProfileScreen(
                         modifier = Modifier
                             .background(NeoTokens.Gray.copy(alpha = 0.4f), RoundedCornerShape(99.dp))
                             .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
                         Text(
-                            text = "${persona.totalChatsAnalyzed} Riwayat Dianalisis",
-                            fontSize = 10.sp,
+                            text = "${persona.totalChatsAnalyzed} Obrolan Dianalisis",
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeoTokens.Black
                         )
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Spektrum Kepribadian Hero Card
+                // Spektrum Kepribadian Card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -244,7 +248,7 @@ fun XiaozhiProfileScreen(
                         ) {
                             Text(
                                 text = "🧬 Spektrum Kepribadian",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeoTokens.Black
                             )
@@ -255,16 +259,16 @@ fun XiaozhiProfileScreen(
                         }
 
                         if (persona.personality.description.isNotBlank()) {
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(8.dp))
                             Text(
                                 text = persona.personality.description,
-                                fontSize = 11.sp,
+                                fontSize = 13.sp,
                                 color = NeoTokens.Dark,
-                                lineHeight = 16.sp
+                                lineHeight = 18.sp
                             )
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(14.dp))
 
                         // Gauge Labels
                         Row(
@@ -273,25 +277,25 @@ fun XiaozhiProfileScreen(
                         ) {
                             Text(
                                 text = "🟣 Introvert (${persona.personality.introvertPercent}%)",
-                                fontSize = 11.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Purple
                             )
                             Text(
                                 text = "🟢 Extrovert (${persona.personality.extrovertPercent}%)",
-                                fontSize = 11.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Emerald
                             )
                         }
 
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(6.dp))
 
                         // Gauge Split Track
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(12.dp)
+                                .height(14.dp)
                                 .clip(RoundedCornerShape(99.dp))
                                 .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
                         ) {
@@ -311,27 +315,27 @@ fun XiaozhiProfileScreen(
                             )
                         }
 
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Reflektif & Mandiri", fontSize = 9.sp, color = NeoTokens.Muted)
-                            Text("Sosial & Terbuka", fontSize = 9.sp, color = NeoTokens.Muted)
+                            Text("Reflektif & Mandiri", fontSize = 11.sp, color = NeoTokens.Muted)
+                            Text("Sosial & Terbuka", fontSize = 11.sp, color = NeoTokens.Muted)
                         }
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // Hobi & Minat Utama
                 Text(
-                    text = "🎯 Hobi & Minat Utama (1 - 100% Rasio)",
-                    fontSize = 13.sp,
+                    text = "🎯 Hobi & Minat Utama",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Black,
                     color = NeoTokens.Black
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     persona.hobbies.forEach { h ->
                         PersonaMetricRow(
@@ -343,16 +347,16 @@ fun XiaozhiProfileScreen(
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // Masalah & Tantangan Dihadapi
                 Text(
-                    text = "⚠️ Masalah & Tantangan (Prioritas Solusi)",
-                    fontSize = 13.sp,
+                    text = "⚠️ Masalah & Tantangan",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Black,
                     color = NeoTokens.Black
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     persona.challenges.forEach { c ->
                         PersonaMetricRow(
@@ -364,16 +368,16 @@ fun XiaozhiProfileScreen(
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // Pola Rutinitas & Kegiatan
                 Text(
                     text = "📅 Pola Rutinitas & Kegiatan",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Black,
                     color = NeoTokens.Black
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     persona.activities.forEach { a ->
                         PersonaMetricRow(
@@ -385,32 +389,32 @@ fun XiaozhiProfileScreen(
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
                 // Kesukaan & Preferensi Interaksi
                 Text(
-                    text = "💬 Kesukaan & Preferensi Interaksi",
-                    fontSize = 13.sp,
+                    text = "💬 Preferensi Interaksi",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Black,
                     color = NeoTokens.Black
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     persona.preferences.forEach { p ->
                         Box(
                             modifier = Modifier
                                 .background(NeoTokens.MintLight, RoundedCornerShape(99.dp))
                                 .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "${p.icon} ${p.name} ${p.percent}%",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Dark
                             )
@@ -418,19 +422,19 @@ fun XiaozhiProfileScreen(
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFFFEF3C7), RoundedCornerShape(8.dp))
                         .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(8.dp))
-                        .padding(10.dp)
+                        .padding(12.dp)
                 ) {
                     Text(
-                        text = "💡 Terhubung ke Suara Xiaozhi: AI Xiaozhi di ESP32 Anda secara otomatis membaca data profil ini agar tanggapan suaranya selalu memahami kepribadian, hobi, dan rutinitas Anda.",
-                        fontSize = 11.sp,
+                        text = "💡 Terhubung ke Suara Xiaozhi: AI Xiaozhi di ESP32 Anda secara otomatis membaca data profil ini agar tanggapan suaranya selalu memahami kepribadian dan gaya bicara Anda.",
+                        fontSize = 12.sp,
                         color = NeoTokens.Dark,
-                        lineHeight = 15.sp
+                        lineHeight = 17.sp
                     )
                 }
             }
@@ -444,41 +448,120 @@ fun XiaozhiProfileScreen(
             backgroundColor = NeoTokens.White,
             contentPadding = PaddingValues(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
-                            .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("G", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NeoTokens.Blue)
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp))
+                                .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("G", fontSize = 20.sp, fontWeight = FontWeight.Black, color = NeoTokens.Blue)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Akun Google",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Black,
+                                color = NeoTokens.Black
+                            )
+                            Text(
+                                text = user.googleEmail ?: "Belum Tertaut",
+                                fontSize = 13.sp,
+                                color = NeoTokens.Muted
+                            )
+                        }
                     }
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Akun Google",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            color = NeoTokens.Black
-                        )
-                        Text(
-                            text = user.googleEmail ?: "Belum Tertaut",
-                            fontSize = 11.sp,
-                            color = NeoTokens.Muted
+
+                    if (user.googleId != null) {
+                        if (user.registeredWithGoogle) {
+                            NeoBadge(
+                                text = "🔒 Tautan Permanen",
+                                backgroundColor = Color(0xFFFEF3C7),
+                                textColor = Color(0xFF92400E)
+                            )
+                        } else {
+                            NeoBadge(
+                                text = "✓ Terhubung",
+                                backgroundColor = NeoTokens.MintLight
+                            )
+                        }
+                    } else {
+                        NeoBadge(
+                            text = "Tidak Tertaut",
+                            backgroundColor = NeoTokens.Gray
                         )
                     }
                 }
 
-                NeoBadge(
-                    text = if (user.googleId != null) "✓ Terhubung" else "Tidak Terhubung",
-                    backgroundColor = if (user.googleId != null) NeoTokens.MintLight else NeoTokens.Gray
-                )
+                Spacer(Modifier.height(14.dp))
+
+                // Actions & Descriptions for Google Account
+                if (user.googleId != null) {
+                    if (user.registeredWithGoogle) {
+                        // Registered with Google: Permanent, cannot unlink
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFFEF3C7), RoundedCornerShape(8.dp))
+                                .border(1.5.dp, Color(0xFFD97706), RoundedCornerShape(8.dp))
+                                .padding(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("🔒", fontSize = 14.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Akun ini didaftarkan menggunakan Google sehingga tautan Google bersifat permanen dan tidak dapat dilepas demi keamanan akun.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF92400E),
+                                    lineHeight = 17.sp
+                                )
+                            }
+                        }
+                    } else {
+                        // Linked via normal account: Can be unlinked
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Button(
+                                onClick = { showUnlinkGoogleConfirm = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = NeoTokens.White,
+                                    contentColor = NeoTokens.Coral
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Coral),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                modifier = Modifier.height(38.dp)
+                            ) {
+                                Text(
+                                    text = "Putuskan Tautan Google",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeoTokens.Coral
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Not linked: Provide link button
+                    NeoButton(
+                        text = "TAUTKAN DENGAN GOOGLE",
+                        onClick = onLinkGoogle,
+                        color = NeoTokens.White,
+                        textColor = NeoTokens.Black,
+                        modifier = Modifier.height(44.dp)
+                    )
+                }
             }
         }
 
@@ -499,13 +582,13 @@ fun XiaozhiProfileScreen(
                     Column {
                         Text(
                             text = "🔧 Tools Cerdas Aktif",
-                            fontSize = 15.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                             color = NeoTokens.Black
                         )
                         Text(
-                            text = "Kemampuan asisten suara Xiaozhi terhubung.",
-                            fontSize = 11.sp,
+                            text = "Kemampuan asisten suara Xiaozhi.",
+                            fontSize = 13.sp,
                             color = NeoTokens.Muted
                         )
                     }
@@ -515,39 +598,35 @@ fun XiaozhiProfileScreen(
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(12.dp))
 
                 // Search Tools
                 NeoTextField(
                     value = toolSearchQuery,
                     onValueChange = { toolSearchQuery = it },
-                    placeholder = "Cari tool cerdas...",
-                    label = "Pencarian Tool"
+                    placeholder = "Cari tools...",
+                    label = "Pencarian Kemampuan"
                 )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
 
-                // Category Filter Pills
-                val categories = listOf(
-                    "all" to "Semua",
-                    "knowledge" to "Knowledge",
-                    "iot" to "Smart Home",
-                    "education" to "Edukasi",
-                    "productivity" to "Produktivitas",
-                    "media" to "Media",
-                    "critical_thinking" to "Logika",
-                    "spiritual" to "Spiritual",
-                    "info" to "Cuaca"
-                )
-
+                // Filter Category Chips
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    categories.forEach { (catKey, catLabel) ->
-                        val isSel = selectedToolCategory == catKey
+                    val cats = listOf(
+                        "all" to "Semua",
+                        "core" to "Dasar",
+                        "academic" to "Akademik",
+                        "iot" to "Smart Home",
+                        "productivity" to "Produktivitas",
+                        "system" to "Sistem"
+                    )
+                    cats.forEach { (key, label) ->
+                        val isSel = selectedToolCategory == key
                         Box(
                             modifier = Modifier
                                 .background(
@@ -555,12 +634,12 @@ fun XiaozhiProfileScreen(
                                     RoundedCornerShape(99.dp)
                                 )
                                 .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(99.dp))
-                                .clickable { selectedToolCategory = catKey }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .clickable { selectedToolCategory = key }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = catLabel,
-                                fontSize = 11.sp,
+                                text = label,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeoTokens.Black
                             )
@@ -570,156 +649,67 @@ fun XiaozhiProfileScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Filtered Tools List
-                val filteredTools = data.toolsCatalog.filter { tool ->
-                    val matchCat = selectedToolCategory == "all" || tool.category.equals(selectedToolCategory, ignoreCase = true)
+                val filteredTools = data.toolsCatalog.filter { t ->
+                    val matchCat = selectedToolCategory == "all" || t.category.equals(selectedToolCategory, ignoreCase = true)
                     val matchQ = toolSearchQuery.isBlank() ||
-                        tool.title.contains(toolSearchQuery, ignoreCase = true) ||
-                        tool.description.contains(toolSearchQuery, ignoreCase = true) ||
-                        tool.categoryLabel.contains(toolSearchQuery, ignoreCase = true)
+                        t.name.contains(toolSearchQuery, ignoreCase = true) ||
+                        t.title.contains(toolSearchQuery, ignoreCase = true) ||
+                        t.description.contains(toolSearchQuery, ignoreCase = true)
                     matchCat && matchQ
                 }
 
-                if (filteredTools.isEmpty()) {
-                    Text(
-                        text = "Tidak ada tool yang cocok.",
-                        fontSize = 12.sp,
-                        color = NeoTokens.Muted,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        filteredTools.forEach { tool ->
-                            ToolItemRow(tool = tool)
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    filteredTools.take(15).forEach { tool ->
+                        ToolCatalogItemRow(tool = tool)
                     }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        // ── 5. Status Koneksi MCP ──
-        NeoCard(
-            modifier = Modifier.fillMaxWidth(),
-            backgroundColor = NeoTokens.White,
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .background(
-                                if (data.mcpStatus.connected) NeoTokens.Emerald
-                                else if (data.mcpStatus.tokenSaved) NeoTokens.Amber
-                                else NeoTokens.Gray,
-                                CircleShape
-                            )
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column {
+                    if (filteredTools.size > 15) {
                         Text(
-                            text = if (data.mcpStatus.connected) "MCP Terhubung"
-                            else if (data.mcpStatus.tokenSaved) "Menunggu Bridge"
-                            else "Tidak Terhubung",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            color = NeoTokens.Black
-                        )
-                        Text(
-                            text = if (data.mcpStatus.connected) "MCP terhubung ke XiaoZhi"
-                            else if (data.mcpStatus.tokenSaved) "Token tersimpan, menunggu bridge"
-                            else "Endpoint MCP belum disimpan",
-                            fontSize = 11.sp,
-                            color = NeoTokens.Muted
+                            text = "+ ${filteredTools.size - 15} tools lainnya aktif",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeoTokens.Muted,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // ── 6. Bantuan WhatsApp ──
-        NeoCard(
-            modifier = Modifier.fillMaxWidth(),
-            backgroundColor = NeoTokens.White,
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Butuh Bantuan?",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = NeoTokens.Black
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Hubungi kami via WhatsApp untuk bantuan teknis.",
-                    fontSize = 11.sp,
-                    color = NeoTokens.Muted
-                )
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = {
-                        val url = "https://wa.me/6289531832365?text=Halo%2C%20saya%20butuh%20bantuan%20terkait%20Xiaozhi%20Indonesia"
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        context.startActivity(intent)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, NeoTokens.Black),
-                    modifier = Modifier.fillMaxWidth().height(44.dp)
-                ) {
-                    Text(
-                        text = "💬 Chat WhatsApp",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        // ── 7. Ubah Mode Operasi ──
+        // ── 5. Actions Footer ──
         NeoButton(
-            text = "🔄 GANTI MODE KE CHRONCHI BLE",
-            onClick = onSwitchToChronchi,
-            color = NeoTokens.Lavender,
-            textColor = NeoTokens.Black
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        // ── 8. Logout ──
-        NeoButton(
-            text = "KELUAR DARI AKUN",
+            text = "LOGOUT DARI XIAOZHI",
             onClick = { showLogoutConfirm = true },
             color = NeoTokens.Coral,
             textColor = NeoTokens.White
         )
 
-        Spacer(Modifier.height(36.dp))
+        Spacer(Modifier.height(14.dp))
+
+        // Switch to Chronchi BLE Mode
+        NeoButton(
+            text = "BERALIH KE CHRONCHI BLE",
+            onClick = onSwitchToChronchi,
+            color = NeoTokens.White,
+            textColor = NeoTokens.Black
+        )
+
+        Spacer(Modifier.height(30.dp))
     }
 
+    // Logout Confirmation Dialog
     if (showLogoutConfirm) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirm = false },
             title = { Text("Keluar dari Akun?", fontWeight = FontWeight.Black) },
-            text = { Text("Anda perlu login kembali untuk mengakses Xiaozhi AI.") },
+            text = { Text("Anda perlu memasukkan username dan password kembali untuk mengakses Xiaozhi AI.") },
             confirmButton = {
                 NeoButton(
                     text = "YA, KELUAR",
                     onClick = {
-                        onLogout()
                         showLogoutConfirm = false
+                        onLogout()
                     },
                     color = NeoTokens.Coral,
                     textColor = NeoTokens.White
@@ -737,6 +727,36 @@ fun XiaozhiProfileScreen(
             shape = RoundedCornerShape(16.dp)
         )
     }
+
+    // Unlink Google Confirmation Dialog
+    if (showUnlinkGoogleConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnlinkGoogleConfirm = false },
+            title = { Text("Putuskan Tautan Google?", fontWeight = FontWeight.Black) },
+            text = { Text("Apakah Anda yakin ingin memutuskan tautan akun Google Anda dari akun ini?") },
+            confirmButton = {
+                NeoButton(
+                    text = "PUTUSKAN",
+                    onClick = {
+                        showUnlinkGoogleConfirm = false
+                        onUnlinkGoogle()
+                    },
+                    color = NeoTokens.Coral,
+                    textColor = NeoTokens.White
+                )
+            },
+            dismissButton = {
+                NeoButton(
+                    text = "BATAL",
+                    onClick = { showUnlinkGoogleConfirm = false },
+                    color = NeoTokens.Gray,
+                    textColor = NeoTokens.Black
+                )
+            },
+            containerColor = NeoTokens.Cream,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 }
 
 @Composable
@@ -746,94 +766,80 @@ private fun PersonaMetricRow(
     percent: Int,
     barColor: Color
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(icon, fontSize = 13.sp)
+                Text(text = icon, fontSize = 14.sp)
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = name,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeoTokens.Black
+                    color = NeoTokens.Dark
                 )
             }
             Text(
                 text = "$percent%",
-                fontSize = 11.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Black,
-                color = barColor
+                color = NeoTokens.Black
             )
         }
         Spacer(Modifier.height(4.dp))
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(7.dp)
+                .height(8.dp)
                 .clip(RoundedCornerShape(99.dp))
-                .background(NeoTokens.Gray.copy(alpha = 0.4f))
+                .background(Color(0xFFE2E8F0))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .fillMaxWidth(percent.coerceIn(0, 100) / 100f)
-                    .background(barColor, RoundedCornerShape(99.dp))
+                    .fillMaxWidth(fraction = (percent.coerceIn(0, 100) / 100f))
+                    .background(barColor)
             )
         }
     }
 }
 
 @Composable
-private fun ToolItemRow(tool: XiaozhiToolItem) {
+private fun ToolCatalogItemRow(tool: XiaozhiToolItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(NeoTokens.Gray.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-            .border(1.dp, NeoTokens.Black.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            .background(Color(0xFFF8FAFC), RoundedCornerShape(8.dp))
+            .border(1.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .background(NeoTokens.White, RoundedCornerShape(6.dp))
-                .border(1.dp, NeoTokens.Black, RoundedCornerShape(6.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(tool.icon, fontSize = 18.sp)
-        }
-
+        Text(text = tool.icon, fontSize = 18.sp)
         Spacer(Modifier.width(10.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = tool.title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Black,
-                color = NeoTokens.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                text = tool.title.ifBlank { tool.name },
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = NeoTokens.Black
             )
             Text(
                 text = tool.description,
-                fontSize = 10.sp,
+                fontSize = 12.sp,
                 color = NeoTokens.Muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(2.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                NeoBadge(text = tool.categoryLabel, backgroundColor = NeoTokens.White)
-                if (tool.enabled) {
-                    Text("✓ Aktif", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NeoTokens.Emerald)
-                } else {
-                    Text("✗ Nonaktif", fontSize = 10.sp, color = NeoTokens.Muted)
-                }
-            }
         }
+        Spacer(Modifier.width(6.dp))
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .background(if (tool.enabled) NeoTokens.Emerald else NeoTokens.Coral, CircleShape)
+                .border(1.dp, NeoTokens.Black, CircleShape)
+        )
     }
 }

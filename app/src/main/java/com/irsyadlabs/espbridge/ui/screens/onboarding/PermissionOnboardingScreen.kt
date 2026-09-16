@@ -226,7 +226,7 @@ fun PermissionOnboardingScreen(onComplete: () -> Unit) {
 @Preview(name = "Permission Setup", showBackground = true, showSystemUi = true)
 @Composable
 private fun PermissionOnboardingScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         PermissionOnboardingScreen(onComplete = {})
     }
 }

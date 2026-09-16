@@ -40,6 +40,29 @@ class XiaozhiRepository(
         return result
     }
 
+    suspend fun googleAuth(idToken: String, action: String = "login"): XiaozhiAuthResult {
+        val currentTok = if (action == "link") currentToken() else null
+        val result = apiClient.googleAuth(idToken, action, currentTok)
+        if (result.success && result.accessToken != null && result.user != null) {
+            val mcp = apiClient.getMcpStatus(result.accessToken)
+            settingsRepository.saveXiaozhiSession(
+                token = result.accessToken,
+                refreshToken = result.refreshToken,
+                username = result.user.username,
+                userId = result.user.id,
+                role = result.user.role,
+                mcpConnected = mcp.connected,
+                preview = mcp.tokenPreview
+            )
+        }
+        return result
+    }
+
+    suspend fun unlinkGoogle(): Result<Boolean> {
+        val token = currentToken() ?: return Result.failure(Exception("Sesi login berakhir."))
+        return apiClient.unlinkGoogle(token)
+    }
+
     suspend fun getMcpStatus(): XiaozhiMcpStatus {
         val token = currentToken() ?: return XiaozhiMcpStatus(false, false, "Tidak terotentikasi")
         val status = apiClient.getMcpStatus(token)

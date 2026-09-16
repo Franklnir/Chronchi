@@ -8,7 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.irsyadlabs.espbridge.ui.navigation.AppNavHost
-import com.irsyadlabs.espbridge.ui.theme.ChronchiTheme
+import com.irsyadlabs.espbridge.ui.theme.XichiTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val state by viewModel.uiState.collectAsState()
-            ChronchiTheme(theme = state.settings.appTheme) {
+            XichiTheme(theme = state.settings.appTheme) {
                 AppNavHost(viewModel)
             }
         }

@@ -1,16 +1,16 @@
-# Chronchi — Android Companion App for ESP32
+# Xichi — Android Companion App for ESP32
 
 [![GitHub release](https://img.shields.io/github/v/release/Franklnir/Chronchi?include_prereleases)](https://github.com/Franklnir/Chronchi/releases/latest)
 ![Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
 ![Kotlin](https://img.shields.io/badge/Language-Kotlin-blue.svg)
 
-**Chronchi** adalah aplikasi pendamping Android yang menghubungkan ponsel Anda dengan perangkat ESP32 secara mulus. Aplikasi ini menangani penerusan notifikasi pilihan, instruksi navigasi Google Maps, status GPS, cuaca, serta status ponsel/jaringan melalui protokol Bluetooth LE yang aman dan efisien.
+**Xichi** adalah aplikasi pendamping Android yang menghubungkan ponsel Anda dengan perangkat ESP32 secara mulus. Aplikasi ini menangani penerusan notifikasi pilihan, instruksi navigasi Google Maps, status GPS, cuaca, serta status ponsel/jaringan melalui protokol Bluetooth LE yang aman dan efisien.
 
 ## 📱 Download Aplikasi
 
 Scan QR Code di bawah ini untuk langsung mengunduh file APK versi terbaru dari GitHub:
 
-![Download Chronchi](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://github.com/Franklnir/Chronchi/releases/download/v1.3.1/Chronchi-v1.3.1-debug.apk)
+![Download Xichi](https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://github.com/Franklnir/Chronchi/releases/latest/download/Xichi-v1.4.0-debug.apk)
 
 ## ✨ Fitur Utama
 

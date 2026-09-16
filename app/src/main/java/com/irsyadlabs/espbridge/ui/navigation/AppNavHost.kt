@@ -104,6 +104,45 @@ fun AppNavHost(viewModel: MainViewModel) {
         }
     }
 
+    val xiaozhiWebClientId = "3260223826-k8qrmthkeegt36pvnbac3oqurnmcmnvq.apps.googleusercontent.com"
+    var pendingXiaozhiGoogleAction by remember { mutableStateOf("login") }
+
+    val xiaozhiGoogleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val account = runCatching {
+            GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
+        }.getOrNull()
+        val token = account?.idToken
+        val action = pendingXiaozhiGoogleAction
+        if (token != null) {
+            viewModel.xiaozhiGoogleAuth(token, action) { success, msg ->
+                viewModel.showMessage(msg ?: if (success) "Autentikasi Google berhasil!" else "Autentikasi Google gagal.")
+                if (success && (action == "login" || action == "register")) {
+                    navController.navigate(XiaozhiDestination.Dashboard.route) {
+                        popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
+                    }
+                }
+            }
+        } else {
+            viewModel.showMessage("Google Sign-In dibatalkan atau token tidak tersedia.")
+        }
+    }
+
+    val launchXiaozhiGoogle: (String) -> Unit = { action ->
+        pendingXiaozhiGoogleAction = action
+        if (activity != null) {
+            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestIdToken(xiaozhiWebClientId)
+                .requestEmail()
+                .build()
+            val client = GoogleSignIn.getClient(activity, options)
+            client.signOut().addOnCompleteListener {
+                xiaozhiGoogleLauncher.launch(client.signInIntent)
+            }
+        } else {
+            viewModel.showMessage("Activity tidak tersedia untuk Google Sign-In.")
+        }
+    }
+
     Scaffold(
         containerColor = if (isXiaozhiMode) NeoTokens.Cream else PaperWhite,
         bottomBar = {
@@ -179,6 +218,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                 XiaozhiAuthScreen(
                     onLogin = viewModel::xiaozhiLogin,
                     onRegister = viewModel::xiaozhiRegister,
+                    onGoogleAuth = { isRegister -> launchXiaozhiGoogle(if (isRegister) "register" else "login") },
                     onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
                     onAuthSuccessAndConnected = {
                         navController.navigate(XiaozhiDestination.Dashboard.route) {
@@ -241,7 +281,6 @@ fun AppNavHost(viewModel: MainViewModel) {
                     chatData = chatHistory,
                     isLoading = state.xiaozhiChatLoading,
                     onSearch = { q, d -> viewModel.loadXiaozhiChatHistory(q, d) },
-                    onClearHistory = { viewModel.xiaozhiClearChatHistory { _, _ -> } },
                     onRefresh = { viewModel.loadXiaozhiChatHistory() }
                 )
             }
@@ -255,6 +294,12 @@ fun AppNavHost(viewModel: MainViewModel) {
                     profileData = state.xiaozhiProfile,
                     isScanningPersona = isScanning,
                     onScanPersona = { viewModel.xiaozhiScanPersona { _, _ -> } },
+                    onLinkGoogle = { launchXiaozhiGoogle("link") },
+                    onUnlinkGoogle = {
+                        viewModel.xiaozhiUnlinkGoogle { success, msg ->
+                            viewModel.showMessage(msg ?: if (success) "Tautan Google berhasil dilepas." else "Gagal melepas tautan Google.")
+                        }
+                    },
                     onSwitchToChronchi = {
                         viewModel.setOperatingMode("CHRONCHI_BLE")
                         navController.navigate(MainDestination.Home.route) {

@@ -149,7 +149,7 @@ fun NeoTextField(
         Text(
             text = label.uppercase(),
             fontWeight = FontWeight.Black,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             color = NeoTokens.Black,
             modifier = Modifier.padding(bottom = 6.dp)
         )
@@ -165,7 +165,7 @@ fun NeoTextField(
                 value = value,
                 onValueChange = onValueChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(placeholder, color = NeoTokens.Muted) },
+                placeholder = { Text(placeholder, color = NeoTokens.Muted, fontSize = 15.sp) },
                 leadingIcon = leadingIcon?.let { { Icon(it, null, tint = NeoTokens.Black) } },
                 trailingIcon = trailingIcon,
                 visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
@@ -210,7 +210,7 @@ fun NeoBadge(
             text = text.uppercase(),
             color = textColor,
             fontWeight = FontWeight.Black,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             letterSpacing = 0.5.sp
         )
     }

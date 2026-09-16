@@ -33,7 +33,16 @@ data class LocalSettings(
     val weatherUpdatedAt: Long = 0L,
     val keepBackgroundConnection: Boolean = true,
     val appTheme: AppTheme = AppTheme.ILLUSTRATIVE,
-    val firebaseDatabaseSecret: String? = null
+    val firebaseDatabaseSecret: String? = null,
+    // Dual Operating Mode & Xiaozhi AI Session
+    val operatingMode: String = "", // "CHRONCHI_BLE" or "XIAOZHI_AI"
+    val xiaozhiAccessToken: String? = null,
+    val xiaozhiRefreshToken: String? = null,
+    val xiaozhiUsername: String? = null,
+    val xiaozhiUserId: Int? = null,
+    val xiaozhiRole: String? = null,
+    val xiaozhiMcpConnected: Boolean = false,
+    val xiaozhiMcpTokenPreview: String? = null
 )
 
 class SettingsRepository(private val context: Context) {
@@ -55,6 +64,15 @@ class SettingsRepository(private val context: Context) {
         val keepBackgroundConnection = booleanPreferencesKey("keep_background_connection")
         val appTheme = stringPreferencesKey("app_theme")
         val firebaseDatabaseSecret = stringPreferencesKey("firebase_database_secret")
+        // Xiaozhi Keys
+        val operatingMode = stringPreferencesKey("operating_mode")
+        val xiaozhiAccessToken = stringPreferencesKey("xiaozhi_access_token")
+        val xiaozhiRefreshToken = stringPreferencesKey("xiaozhi_refresh_token")
+        val xiaozhiUsername = stringPreferencesKey("xiaozhi_username")
+        val xiaozhiUserId = intPreferencesKey("xiaozhi_user_id")
+        val xiaozhiRole = stringPreferencesKey("xiaozhi_role")
+        val xiaozhiMcpConnected = booleanPreferencesKey("xiaozhi_mcp_connected")
+        val xiaozhiMcpTokenPreview = stringPreferencesKey("xiaozhi_mcp_token_preview")
     }
 
     val settings: Flow<LocalSettings> = context.espBridgeDataStore.data.map { prefs ->
@@ -80,7 +98,15 @@ class SettingsRepository(private val context: Context) {
             appTheme = runCatching {
                 AppTheme.valueOf(prefs[Keys.appTheme] ?: AppTheme.ILLUSTRATIVE.name)
             }.getOrDefault(AppTheme.ILLUSTRATIVE),
-            firebaseDatabaseSecret = prefs[Keys.firebaseDatabaseSecret]
+            firebaseDatabaseSecret = prefs[Keys.firebaseDatabaseSecret],
+            operatingMode = prefs[Keys.operatingMode] ?: "",
+            xiaozhiAccessToken = prefs[Keys.xiaozhiAccessToken],
+            xiaozhiRefreshToken = prefs[Keys.xiaozhiRefreshToken],
+            xiaozhiUsername = prefs[Keys.xiaozhiUsername],
+            xiaozhiUserId = prefs[Keys.xiaozhiUserId],
+            xiaozhiRole = prefs[Keys.xiaozhiRole],
+            xiaozhiMcpConnected = prefs[Keys.xiaozhiMcpConnected] ?: false,
+            xiaozhiMcpTokenPreview = prefs[Keys.xiaozhiMcpTokenPreview]
         )
     }
 
@@ -153,5 +179,43 @@ class SettingsRepository(private val context: Context) {
         } else {
             it[Keys.firebaseDatabaseSecret] = secret
         }
+    }
+
+    // Xiaozhi session methods
+    suspend fun setOperatingMode(mode: String) = context.espBridgeDataStore.edit {
+        it[Keys.operatingMode] = mode
+    }
+
+    suspend fun saveXiaozhiSession(
+        token: String,
+        refreshToken: String?,
+        username: String,
+        userId: Int?,
+        role: String?,
+        mcpConnected: Boolean,
+        preview: String? = null
+    ) = context.espBridgeDataStore.edit {
+        it[Keys.xiaozhiAccessToken] = token
+        if (refreshToken != null) it[Keys.xiaozhiRefreshToken] = refreshToken else it.remove(Keys.xiaozhiRefreshToken)
+        it[Keys.xiaozhiUsername] = username
+        if (userId != null) it[Keys.xiaozhiUserId] = userId else it.remove(Keys.xiaozhiUserId)
+        if (role != null) it[Keys.xiaozhiRole] = role else it.remove(Keys.xiaozhiRole)
+        it[Keys.xiaozhiMcpConnected] = mcpConnected
+        if (preview != null) it[Keys.xiaozhiMcpTokenPreview] = preview else it.remove(Keys.xiaozhiMcpTokenPreview)
+    }
+
+    suspend fun setXiaozhiMcpConnected(connected: Boolean, preview: String? = null) = context.espBridgeDataStore.edit {
+        it[Keys.xiaozhiMcpConnected] = connected
+        if (preview != null) it[Keys.xiaozhiMcpTokenPreview] = preview
+    }
+
+    suspend fun clearXiaozhiSession() = context.espBridgeDataStore.edit {
+        it.remove(Keys.xiaozhiAccessToken)
+        it.remove(Keys.xiaozhiRefreshToken)
+        it.remove(Keys.xiaozhiUsername)
+        it.remove(Keys.xiaozhiUserId)
+        it.remove(Keys.xiaozhiRole)
+        it[Keys.xiaozhiMcpConnected] = false
+        it.remove(Keys.xiaozhiMcpTokenPreview)
     }
 }

@@ -244,6 +244,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun xiaozhiGoogleAuth(
+        idToken: String,
+        action: String = "login",
+        onResult: (Boolean, String?) -> Unit
+    ) = viewModelScope.launch {
+        busy.value = true
+        try {
+            val res = c.xiaozhi.googleAuth(idToken, action)
+            if (res.success) {
+                if (action != "link") {
+                    val mcp = c.xiaozhi.getMcpStatus()
+                    xiaozhiMcpStatus.value = mcp
+                    refreshXiaozhiDashboard()
+                }
+                loadXiaozhiProfile()
+                onResult(true, res.message.ifBlank { "Autentikasi Google berhasil." })
+            } else {
+                onResult(false, res.message.ifBlank { "Autentikasi Google gagal." })
+            }
+        } catch (e: Exception) {
+            onResult(false, e.localizedMessage ?: "Gagal terhubung ke server Google Auth.")
+        } finally {
+            busy.value = false
+        }
+    }
+
+    fun xiaozhiUnlinkGoogle(
+        onResult: (Boolean, String?) -> Unit
+    ) = viewModelScope.launch {
+        busy.value = true
+        try {
+            c.xiaozhi.unlinkGoogle().fold(
+                onSuccess = {
+                    loadXiaozhiProfile()
+                    onResult(true, "Tautan Google berhasil dilepas.")
+                },
+                onFailure = { error ->
+                    onResult(false, error.localizedMessage ?: "Gagal melepas tautan Google.")
+                }
+            )
+        } catch (e: Exception) {
+            onResult(false, e.localizedMessage ?: "Terjadi kesalahan saat melepas tautan Google.")
+        } finally {
+            busy.value = false
+        }
+    }
+
     fun xiaozhiSaveAndConnectMcp(
         mcpToken: String,
         onUpdate: (XiaozhiMcpStatus) -> Unit,

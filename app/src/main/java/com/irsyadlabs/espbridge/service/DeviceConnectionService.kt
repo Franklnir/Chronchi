@@ -11,11 +11,12 @@ import com.irsyadlabs.espbridge.EspBridgeApp
 import com.irsyadlabs.espbridge.MainActivity
 import com.irsyadlabs.espbridge.R
 import com.irsyadlabs.espbridge.core.model.BleDeliveryState
-import com.irsyadlabs.espbridge.core.model.ChronchiLiveStatusFormatter
+import com.irsyadlabs.espbridge.core.model.XichiLiveStatusFormatter
 import com.irsyadlabs.espbridge.core.model.ConnectionMode
 import com.irsyadlabs.espbridge.core.model.ConnectionState
 import com.irsyadlabs.espbridge.core.model.OledPreviewSelector
 import com.irsyadlabs.espbridge.core.model.PhoneState
+import com.irsyadlabs.espbridge.core.model.XichiLiveStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,8 +48,6 @@ class DeviceConnectionService : Service() {
                 if (state == ConnectionState.CONNECTED) {
                     container.systemCollector.refresh()
                     container.router.fullSync(container.stateHub.state.value)
-                    // Firebase config is now manual - user sends via button
-                    // container.router.sendFirebaseConfig()
                 }
             }
         }
@@ -84,8 +83,6 @@ class DeviceConnectionService : Service() {
                     }
                 }
                 
-                // If disconnected, check more frequently (every 10s)
-                // If connected, heartbeat every 60s
                 delay(if (container.ble.isConnected()) 60_000L else 10_000L)
             }
         }
@@ -99,7 +96,6 @@ class DeviceConnectionService : Service() {
             }
         }
         
-        // Trigger immediate check when service is started/restarted
         scope.launch {
             checkAndReconnect()
         }
@@ -135,7 +131,7 @@ class DeviceConnectionService : Service() {
             getString(R.string.connection_channel_name),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Tampilan Chronchi langsung dan koneksi otomatis ESP32"
+            description = "Tampilan Xichi langsung dan koneksi otomatis ESP32"
             setShowBadge(false)
         }
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
@@ -172,13 +168,13 @@ class DeviceConnectionService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val live = ChronchiLiveStatusFormatter.format(phoneState)
+        val live = XichiLiveStatusFormatter.format(phoneState)
         val connectionText = when (connection) {
             ConnectionState.CONNECTED -> "BLE tersambung"
             ConnectionState.CONNECTING, ConnectionState.DISCOVERING, ConnectionState.SYNCING -> "Menghubungkan BLE"
-            ConnectionState.SCANNING -> "Mencari Chronchi otomatis"
+            ConnectionState.SCANNING -> "Mencari Xichi otomatis"
             ConnectionState.ERROR -> "BLE mencoba kembali"
-            else -> "Menunggu Chronchi"
+            else -> "Menunggu Xichi"
         }
         val deliveryText = when {
             phoneState.navigation.active -> deliveryText(phoneState.navigation.bleDelivery)
@@ -187,8 +183,8 @@ class DeviceConnectionService : Service() {
         }
         val expanded = buildList {
             add(live.primary)
-            live.secondary.takeIf(String::isNotBlank)?.let(::add)
-            live.footer.takeIf(String::isNotBlank)?.let(::add)
+            if (live.secondary.isNotBlank()) add(live.secondary)
+            if (live.footer.isNotBlank()) add(live.footer)
             add(listOf(connectionText, deliveryText).filter(String::isNotBlank).joinToString(" • "))
         }.joinToString("\n")
 
@@ -216,8 +212,8 @@ class DeviceConnectionService : Service() {
     }
 
     private fun deliveryText(value: BleDeliveryState): String = when (value) {
-        BleDeliveryState.SENT -> "ACK Chronchi"
-        BleDeliveryState.SENDING -> "Mengirim ke Chronchi"
+        BleDeliveryState.SENT -> "ACK Xichi"
+        BleDeliveryState.SENDING -> "Mengirim ke Xichi"
         BleDeliveryState.PREVIEW_ONLY -> "Menunggu sinkronisasi"
     }
 

@@ -12,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mail
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var validationMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     MainScreenColumn(
@@ -133,7 +137,16 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Security Key") },
                         leadingIcon = { Icon(Icons.Rounded.Lock, null, tint = SketchTeal) },
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    if (passwordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                    contentDescription = "Toggle password visibility",
+                                    tint = SketchTeal
+                                )
+                            }
+                        },
                         singleLine = true,
                         shape = RoundedCornerShape(UiTokens.SmallRadius),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -195,7 +208,7 @@ fun LoginScreen(
 )
 @Composable
 private fun LoginScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         LoginScreen(
             busy = false,
             firebaseReady = false,

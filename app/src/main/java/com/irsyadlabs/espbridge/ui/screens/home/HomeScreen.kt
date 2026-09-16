@@ -1,6 +1,5 @@
 package com.irsyadlabs.espbridge.ui.screens.home
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -108,7 +107,7 @@ private fun HomeHeader() {
     ) {
         Column {
             Text(
-                "Chronchi",
+                "Xichi",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -289,7 +288,7 @@ private fun StatusItem(icon: androidx.compose.ui.graphics.vector.ImageVector, va
 @Preview(name = "Home", showBackground = true, showSystemUi = true)
 @Composable
 private fun HomeScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         HomeScreen(
             state = previewUiState,
             onToggleSource = { _, _ -> },

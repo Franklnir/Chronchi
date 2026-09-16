@@ -32,6 +32,25 @@ class XiaozhiApiClient(
         parseAuthResponse(code, response)
     }
 
+    suspend fun googleAuth(idToken: String, action: String = "login", accessToken: String? = null): XiaozhiAuthResult = withContext(Dispatchers.IO) {
+        val payload = JSONObject().apply {
+            put("id_token", idToken.trim())
+            put("action", action)
+        }
+        val (code, response) = executeRequest("/api/v1/auth/google", "POST", payload.toString(), token = accessToken)
+        parseAuthResponse(code, response)
+    }
+
+    suspend fun unlinkGoogle(accessToken: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        val (code, response) = executeRequest("/api/v1/auth/google/unlink", "POST", "{}", token = accessToken)
+        if (code in 200..299) {
+            Result.success(true)
+        } else {
+            val errorMsg = parseErrorMessage(response) ?: "Gagal melepas tautan Google ($code)"
+            Result.failure(Exception(errorMsg))
+        }
+    }
+
     suspend fun getMcpStatus(accessToken: String): XiaozhiMcpStatus = withContext(Dispatchers.IO) {
         val (code, response) = executeRequest("/api/v1/mcp/status", "GET", token = accessToken)
         if (code in 200..299 && response != null) {
@@ -102,7 +121,10 @@ class XiaozhiApiClient(
                     username = uObj.optString("username", ""),
                     role = uObj.optString("role", "user"),
                     uiTheme = uObj.optString("ui_theme", "neo"),
-                    createdAt = uObj.optString("created_at", "")
+                    createdAt = uObj.optString("created_at", ""),
+                    googleId = uObj.optString("google_id").takeIf { it.isNotBlank() },
+                    googleEmail = uObj.optString("google_email").takeIf { it.isNotBlank() },
+                    registeredWithGoogle = uObj.optBoolean("registered_with_google", false)
                 )
 
                 // Stats
@@ -347,7 +369,8 @@ class XiaozhiApiClient(
                     uiTheme = userObj.optString("ui_theme", "neo"),
                     createdAt = userObj.optString("created_at", ""),
                     googleId = userObj.optString("google_id").takeIf { it.isNotBlank() },
-                    googleEmail = userObj.optString("google_email").takeIf { it.isNotBlank() }
+                    googleEmail = userObj.optString("google_email").takeIf { it.isNotBlank() },
+                    registeredWithGoogle = userObj.optBoolean("registered_with_google", false)
                 )
                 val personaObj = json.optJSONObject("persona_analysis")
                 val persona = parsePersona(personaObj)
@@ -458,7 +481,10 @@ class XiaozhiApiClient(
                     XiaozhiUser(
                         id = userObj.optInt("id", 1),
                         username = userObj.optString("username", ""),
-                        role = userObj.optString("role", "user")
+                        role = userObj.optString("role", "user"),
+                        googleId = userObj.optString("google_id").takeIf { it.isNotBlank() },
+                        googleEmail = userObj.optString("google_email").takeIf { it.isNotBlank() },
+                        registeredWithGoogle = userObj.optBoolean("registered_with_google", false)
                     )
                 } else null
                 XiaozhiAuthResult(

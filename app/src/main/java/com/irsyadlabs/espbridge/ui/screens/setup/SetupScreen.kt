@@ -447,7 +447,7 @@ private fun formatCapturedTime(timestamp: Long): String = runCatching {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SetupScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         SetupScreen(
             state = previewUiState,
             onMode = {}, onCompanionPair = {}, onScan = {}, onConnect = {},

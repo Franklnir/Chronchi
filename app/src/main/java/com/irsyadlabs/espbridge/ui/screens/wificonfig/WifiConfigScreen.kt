@@ -432,7 +432,7 @@ private fun Color.coerceAlpha(alpha: Float): Color = this.copy(alpha = alpha)
 @Preview(name = "WiFi Config", showBackground = true, showSystemUi = true)
 @Composable
 private fun WifiConfigScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         WifiConfigScreen(
             state = previewUiState,
             onSendWifiConfig = { _, _ -> },

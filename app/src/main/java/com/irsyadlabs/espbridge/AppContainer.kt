@@ -11,6 +11,8 @@ import com.irsyadlabs.espbridge.data.firmware.FirmwareUpdateManager
 import com.irsyadlabs.espbridge.data.firmware.FirmwareUpdateRepository
 import com.irsyadlabs.espbridge.data.local.SettingsRepository
 import com.irsyadlabs.espbridge.data.weather.WeatherRepository
+import com.irsyadlabs.espbridge.data.xiaozhi.XiaozhiApiClient
+import com.irsyadlabs.espbridge.data.xiaozhi.XiaozhiRepository
 import com.irsyadlabs.espbridge.state.PhoneStateHub
 import com.irsyadlabs.espbridge.transport.TransportRouter
 import com.irsyadlabs.espbridge.transport.ble.BleConnectionManager
@@ -31,4 +33,8 @@ class AppContainer(context: Context) {
     val weather = WeatherRepository(settings)
     val systemCollector = SystemStateCollector(appContext, stateHub, router, ble)
     val locationCollector = LocationCollector(appContext, stateHub, router, weather)
+
+    // Xiaozhi AI integration
+    val xiaozhiApi = XiaozhiApiClient()
+    val xiaozhi = XiaozhiRepository(xiaozhiApi, settings)
 }

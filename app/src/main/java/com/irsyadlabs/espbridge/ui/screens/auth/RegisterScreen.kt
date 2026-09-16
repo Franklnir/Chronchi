@@ -181,7 +181,7 @@ fun RegisterScreen(
 @Preview(name = "Register", showBackground = true, showSystemUi = true)
 @Composable
 private fun RegisterScreenPreview() {
-    ChronchiTheme {
+    XichiTheme {
         RegisterScreen(
             busy = false,
             message = null,

@@ -49,7 +49,7 @@ private val ComicColors = lightColorScheme(
 )
 
 @Composable
-fun ChronchiTheme(
+fun XichiTheme(
     theme: AppTheme = AppTheme.ILLUSTRATIVE,
     content: @Composable () -> Unit
 ) {

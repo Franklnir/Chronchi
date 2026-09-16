@@ -1,6 +1,6 @@
 package com.irsyadlabs.espbridge.core.model
 
-data class ChronchiLiveStatus(
+data class XichiLiveStatus(
     val title: String,
     val primary: String,
     val secondary: String = "",
@@ -10,15 +10,15 @@ data class ChronchiLiveStatus(
         get() = listOf(primary, secondary, footer).filter(String::isNotBlank).joinToString("\n")
 }
 
-object ChronchiLiveStatusFormatter {
-    fun format(state: PhoneState, nowMillis: Long = System.currentTimeMillis()): ChronchiLiveStatus {
+object XichiLiveStatusFormatter {
+    fun format(state: PhoneState, nowMillis: Long = System.currentTimeMillis()): XichiLiveStatus {
         val preview = OledPreviewSelector.select(state, nowMillis)
         val event = preview.event
         return when (preview.template) {
             OledTemplate.NAVIGATION -> {
                 val navigation = preview.navigation ?: state.navigation
-                ChronchiLiveStatus(
-                    title = "CHRONCHI • NAVIGASI",
+                XichiLiveStatus(
+                    title = "XICHI • NAVIGASI",
                     primary = listOf(navigation.distanceText, maneuverText(navigation.maneuver))
                         .filter(String::isNotBlank)
                         .joinToString(" "),
@@ -26,16 +26,16 @@ object ChronchiLiveStatusFormatter {
                     footer = navigation.destinationDistanceText.orEmpty()
                 )
             }
-            OledTemplate.HOME -> ChronchiLiveStatus(
-                title = "CHRONCHI • HOME",
+            OledTemplate.HOME -> XichiLiveStatus(
+                title = "XICHI • HOME",
                 primary = listOf(preview.home.time, preview.home.date).filter(String::isNotBlank).joinToString(" • "),
                 secondary = listOfNotNull(preview.home.temperature, preview.home.locationName)
                     .filter(String::isNotBlank)
                     .joinToString(" • "),
                 footer = "Baterai ${preview.home.batteryLevel}%"
             )
-            OledTemplate.PAYMENT -> ChronchiLiveStatus(
-                title = "CHRONCHI • ${event?.sourceApp.orEmpty()}",
+            OledTemplate.PAYMENT -> XichiLiveStatus(
+                title = "XICHI • ${event?.sourceApp.orEmpty()}",
                 primary = event?.primaryText.orEmpty(),
                 secondary = event?.secondaryText.orEmpty(),
                 footer = event?.tertiaryText.orEmpty()
@@ -43,8 +43,8 @@ object ChronchiLiveStatusFormatter {
             OledTemplate.MESSAGE,
             OledTemplate.PROFESSIONAL,
             OledTemplate.ORDER,
-            OledTemplate.SYSTEM -> ChronchiLiveStatus(
-                title = "CHRONCHI • ${event?.sourceApp.orEmpty()}",
+            OledTemplate.SYSTEM -> XichiLiveStatus(
+                title = "XICHI • ${event?.sourceApp.orEmpty()}",
                 primary = event?.primaryText.orEmpty(),
                 secondary = event?.secondaryText.orEmpty(),
                 footer = event?.tertiaryText.orEmpty()

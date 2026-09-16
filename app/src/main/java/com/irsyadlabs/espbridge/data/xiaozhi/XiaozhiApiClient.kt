@@ -10,8 +10,8 @@ import java.net.URL
 import java.net.URLEncoder
 
 class XiaozhiApiClient(
-    private val baseUrl: String = "https://irsyadmiler-xiaozhi.hf.space",
-    private val fallbackUrl: String = "http://163.61.58.235:8080"
+    private val baseUrl: String = "http://163.61.58.235:8080",
+    private val fallbackUrl: String = "https://irsyadmiler-xiaozhi.hf.space"
 ) {
 
     suspend fun login(username: String, password: String): XiaozhiAuthResult = withContext(Dispatchers.IO) {
@@ -19,7 +19,7 @@ class XiaozhiApiClient(
             put("username", username)
             put("password", password)
         }
-        val (code, response) = executeRequest("/api/auth/web-login", "POST", payload.toString())
+        val (code, response) = executeRequest("/api/v1/auth/login", "POST", payload.toString())
         parseAuthResponse(code, response)
     }
 
@@ -28,7 +28,7 @@ class XiaozhiApiClient(
             put("username", username)
             put("password", password)
         }
-        val (code, response) = executeRequest("/api/auth/web-register", "POST", payload.toString())
+        val (code, response) = executeRequest("/api/v1/auth/register", "POST", payload.toString())
         parseAuthResponse(code, response)
     }
 

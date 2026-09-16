@@ -1,5 +1,11 @@
 package com.irsyadlabs.espbridge.ui.components
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -145,6 +151,19 @@ fun NeoTextField(
     isPassword: Boolean = false,
     error: String? = null
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
+    val effectiveTrailingIcon: @Composable (() -> Unit)? = trailingIcon ?: if (isPassword) {
+        {
+            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                    contentDescription = if (passwordVisible) "Sembunyikan password" else "Tampilkan password",
+                    tint = NeoTokens.Black
+                )
+            }
+        }
+    } else null
+
     Column(modifier = modifier) {
         Text(
             text = label.uppercase(),
@@ -167,8 +186,8 @@ fun NeoTextField(
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(placeholder, color = NeoTokens.Muted, fontSize = 15.sp) },
                 leadingIcon = leadingIcon?.let { { Icon(it, null, tint = NeoTokens.Black) } },
-                trailingIcon = trailingIcon,
-                visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+                trailingIcon = effectiveTrailingIcon,
+                visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
                 singleLine = true,
                 shape = RoundedCornerShape(NeoTokens.ButtonCorner),
                 colors = OutlinedTextFieldDefaults.colors(

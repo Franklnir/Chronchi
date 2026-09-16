@@ -233,7 +233,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val res = c.xiaozhi.register(username, password)
             if (res.success && res.accessToken != null) {
-                onResult(true, null)
+                val mcp = c.xiaozhi.getMcpStatus()
+                xiaozhiMcpStatus.value = mcp
+                loadXiaozhiProfile()
+                if (mcp.connected) {
+                    refreshXiaozhiDashboard()
+                    onResult(true, null)
+                } else {
+                    onResult(true, "MCP_REQUIRED")
+                }
             } else {
                 onResult(false, res.message.ifBlank { "Registrasi gagal." })
             }
@@ -256,10 +264,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (action != "link") {
                     val mcp = c.xiaozhi.getMcpStatus()
                     xiaozhiMcpStatus.value = mcp
-                    refreshXiaozhiDashboard()
+                    loadXiaozhiProfile()
+                    if (mcp.connected) {
+                        refreshXiaozhiDashboard()
+                        onResult(true, null)
+                    } else {
+                        onResult(true, "MCP_REQUIRED")
+                    }
+                } else {
+                    loadXiaozhiProfile()
+                    onResult(true, res.message.ifBlank { "Autentikasi Google berhasil." })
                 }
-                loadXiaozhiProfile()
-                onResult(true, res.message.ifBlank { "Autentikasi Google berhasil." })
             } else {
                 onResult(false, res.message.ifBlank { "Autentikasi Google gagal." })
             }

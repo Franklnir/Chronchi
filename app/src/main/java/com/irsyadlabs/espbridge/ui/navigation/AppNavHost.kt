@@ -106,6 +106,7 @@ fun AppNavHost(viewModel: MainViewModel) {
 
     val xiaozhiWebClientId = "3260223826-k8qrmthkeegt36pvnbac3oqurnmcmnvq.apps.googleusercontent.com"
     var pendingXiaozhiGoogleAction by remember { mutableStateOf("login") }
+    var pendingXiaozhiGoogleCallback by remember { mutableStateOf<((Boolean, String?) -> Unit)?>(null) }
 
     val xiaozhiGoogleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val account = runCatching {
@@ -113,22 +114,32 @@ fun AppNavHost(viewModel: MainViewModel) {
         }.getOrNull()
         val token = account?.idToken
         val action = pendingXiaozhiGoogleAction
+        val cb = pendingXiaozhiGoogleCallback
         if (token != null) {
             viewModel.xiaozhiGoogleAuth(token, action) { success, msg ->
-                viewModel.showMessage(msg ?: if (success) "Autentikasi Google berhasil!" else "Autentikasi Google gagal.")
-                if (success && (action == "login" || action == "register")) {
-                    navController.navigate(XiaozhiDestination.Dashboard.route) {
-                        popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
+                cb?.invoke(success, msg)
+                if (success) {
+                    if (action == "link") {
+                        viewModel.showMessage(msg ?: "Akun Google berhasil ditautkan!")
+                    } else if (msg != "MCP_REQUIRED") {
+                        viewModel.showMessage("Selamat datang di Xichi!")
+                        navController.navigate(XiaozhiDestination.Dashboard.route) {
+                            popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
+                        }
                     }
+                } else {
+                    viewModel.showMessage(msg ?: "Autentikasi Google gagal.")
                 }
             }
         } else {
+            cb?.invoke(false, "Google Sign-In dibatalkan atau token tidak tersedia.")
             viewModel.showMessage("Google Sign-In dibatalkan atau token tidak tersedia.")
         }
     }
 
-    val launchXiaozhiGoogle: (String) -> Unit = { action ->
+    val launchXiaozhiGoogle: (String, ((Boolean, String?) -> Unit)?) -> Unit = { action, onComplete ->
         pendingXiaozhiGoogleAction = action
+        pendingXiaozhiGoogleCallback = onComplete
         if (activity != null) {
             val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken(xiaozhiWebClientId)
@@ -139,6 +150,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                 xiaozhiGoogleLauncher.launch(client.signInIntent)
             }
         } else {
+            onComplete?.invoke(false, "Activity tidak tersedia untuk Google Sign-In.")
             viewModel.showMessage("Activity tidak tersedia untuk Google Sign-In.")
         }
     }
@@ -218,7 +230,9 @@ fun AppNavHost(viewModel: MainViewModel) {
                 XiaozhiAuthScreen(
                     onLogin = viewModel::xiaozhiLogin,
                     onRegister = viewModel::xiaozhiRegister,
-                    onGoogleAuth = { isRegister -> launchXiaozhiGoogle(if (isRegister) "register" else "login") },
+                    onGoogleAuth = { isRegister, onComplete ->
+                        launchXiaozhiGoogle(if (isRegister) "register" else "login", onComplete)
+                    },
                     onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
                     onAuthSuccessAndConnected = {
                         navController.navigate(XiaozhiDestination.Dashboard.route) {
@@ -294,7 +308,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                     profileData = state.xiaozhiProfile,
                     isScanningPersona = isScanning,
                     onScanPersona = { viewModel.xiaozhiScanPersona { _, _ -> } },
-                    onLinkGoogle = { launchXiaozhiGoogle("link") },
+                    onLinkGoogle = { launchXiaozhiGoogle("link", null) },
                     onUnlinkGoogle = {
                         viewModel.xiaozhiUnlinkGoogle { success, msg ->
                             viewModel.showMessage(msg ?: if (success) "Tautan Google berhasil dilepas." else "Gagal melepas tautan Google.")

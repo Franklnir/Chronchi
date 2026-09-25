@@ -1,5 +1,8 @@
 # Xichi — Android Companion App for ESP32
 
+🌐 **Website Resmi Xiaozhi Indonesia:** [https://xiaozhiscig.biz.id](https://xiaozhiscig.biz.id)  
+📖 **Dokumentasi & Setup:** [https://xiaozhiscig.biz.id/dokumentasi](https://xiaozhiscig.biz.id/dokumentasi)  
+
 [![GitHub release](https://img.shields.io/github/v/release/Franklnir/Chronchi?include_prereleases)](https://github.com/Franklnir/Chronchi/releases/latest)
 ![Android](https://img.shields.io/badge/Platform-Android-brightgreen.svg)
 ![Kotlin](https://img.shields.io/badge/Language-Kotlin-blue.svg)

@@ -56,7 +56,6 @@ fun XiaozhiAuthScreen(
     onLogin: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onRegister: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onGoogleAuth: (isRegister: Boolean, onComplete: (Boolean, String?) -> Unit) -> Unit,
-    onGoogleWebAuth: ((isRegister: Boolean) -> Unit)? = null,
     onSaveAndConnectMcp: (String, (XiaozhiMcpStatus) -> Unit, (Boolean) -> Unit) -> Unit,
     onAuthSuccessAndConnected: () -> Unit,
     onSwitchToChronchi: () -> Unit,
@@ -959,20 +958,7 @@ fun XiaozhiAuthScreen(
                             }
                         }
 
-                        if (onGoogleWebAuth != null) {
-                            Spacer(Modifier.height(8.dp))
-                            TextButton(
-                                onClick = { onGoogleWebAuth(!isLoginTab) },
-                                enabled = !isBusy
-                            ) {
-                                Text(
-                                    text = "Atau buka Google Sign-In Alternatif (In-App) ↗",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeoTokens.Blue
-                                )
-                            }
-                        }
+                        
 
                         if (!isLoginTab) {
                             Spacer(Modifier.height(8.dp))

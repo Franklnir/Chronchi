@@ -1,6 +1,5 @@
 package com.irsyadlabs.espbridge.ui.navigation
 
-import com.irsyadlabs.espbridge.ui.components.InAppGoogleAuthDialog
 
 import android.app.Activity
 import android.content.Intent
@@ -84,16 +83,18 @@ fun AppNavHost(viewModel: MainViewModel) {
     val xiaozhiWebClientId = "1073158241145-68rt5j4ekpji59f7ot1k91jq3qquv5l4.apps.googleusercontent.com"
     var pendingXiaozhiGoogleAction by remember { mutableStateOf("login") }
     var pendingXiaozhiGoogleCallback by remember { mutableStateOf<((Boolean, String?) -> Unit)?>(null) }
-    var inAppGoogleAuthUrl by remember { mutableStateOf<String?>(null) }
 
     val xiaozhiGoogleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         var apiExceptionCode: Int? = null
+        var apiExceptionMessage: String? = null
         val account = try {
             GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
         } catch (e: ApiException) {
             apiExceptionCode = e.statusCode
+            apiExceptionMessage = e.message
             null
         } catch (e: Exception) {
+            apiExceptionMessage = e.message
             null
         }
         val token = account?.idToken
@@ -121,19 +122,18 @@ fun AppNavHost(viewModel: MainViewModel) {
                     viewModel.showMessage(msg ?: "Autentikasi Google gagal.")
                 }
             }
-        } else if (apiExceptionCode != null && apiExceptionCode != 12501) {
-            // ApiException (10 = DEVELOPER_ERROR / SHA-1 mismatch, etc.) -> Seamless 100% In-App Web OAuth!
-            viewModel.showMessage("Membuka login Google di dalam aplikasi...")
-            val webUri = if (action == "link") {
-                val tok = state.settings.xiaozhiAccessToken ?: ""
-                "https://xiaozhiscig.biz.id/api/auth/google/link?token=${Uri.encode(tok)}&source=mobile_app"
-            } else {
-                "https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile_app"
-            }
-            inAppGoogleAuthUrl = webUri
+        } else if (apiExceptionCode == 12501) {
+            cb?.invoke(false, "Login Google dibatalkan.")
+            viewModel.showMessage("Login Google dibatalkan.")
         } else {
-            cb?.invoke(false, "Google Sign-In dibatalkan.")
-            viewModel.showMessage("Google Sign-In dibatalkan.")
+            val err = when (apiExceptionCode) {
+                10 -> "Google Sign-In Error (10): Pastikan koneksi internet stabil & akun Google aktif."
+                7 -> "Koneksi jaringan terputus (Error 7)."
+                12500 -> "Google Sign-In Error (12500). Silakan coba pilih akun Google lainnya."
+                else -> apiExceptionMessage ?: "Google Sign-In gagal diproses."
+            }
+            cb?.invoke(false, err)
+            viewModel.showMessage(err)
         }
     }
 
@@ -249,11 +249,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                             }
                         }
                     },
-                    onGoogleWebAuth = { isRegister ->
-                        val action = if (isRegister) "register" else "login"
-                        pendingXiaozhiGoogleAction = action
-                        inAppGoogleAuthUrl = "https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile_app"
-                    },
+
                     onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
                     onAuthSuccessAndConnected = {
                         val target = if (state.settings.operatingMode == "CHRONCHI_BLE") {
@@ -553,38 +549,6 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
          }
-        // ── 100% In-App Google OAuth Dialog (Tanpa Browser Luar) ────────────────
-        if (inAppGoogleAuthUrl != null) {
-            InAppGoogleAuthDialog(
-                authUrl = inAppGoogleAuthUrl!!,
-                onDismiss = {
-                    inAppGoogleAuthUrl = null
-                    pendingXiaozhiGoogleCallback?.invoke(false, "Google Sign-In dibatalkan.")
-                },
-                onCallback = { uri ->
-                    inAppGoogleAuthUrl = null
-                    viewModel.handleOAuthCallback(uri)
-                    val action = uri.getQueryParameter("action") ?: pendingXiaozhiGoogleAction
-                    val err = uri.getQueryParameter("error")
-                    if (err.isNullOrBlank()) {
-                        pendingXiaozhiGoogleCallback?.invoke(true, null)
-                        if (action != "link") {
-                            if (state.settings.operatingMode == "CHRONCHI_BLE") {
-                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                                navController.navigate(target) {
-                                    popUpTo(ROUTE_LOGIN) { inclusive = true }
-                                }
-                            } else {
-                                navController.navigate(XiaozhiDestination.Dashboard.route) {
-                                    popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
-                                }
-                            }
-                        }
-                    } else {
-                        pendingXiaozhiGoogleCallback?.invoke(false, err)
-                    }
-                }
-            )
-        }
+        
     }
 }

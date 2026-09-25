@@ -718,38 +718,60 @@ fun XiaozhiAuthScreen(
                                     // Error message overlay if AP not reachable
                                     if (webErrorMsg != null) {
                                         Box(
-                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White).padding(20.dp),
+                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White).padding(16.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(Icons.Rounded.WifiOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(44.dp))
-                                                Spacer(Modifier.height(10.dp))
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                                            ) {
+                                                Icon(Icons.Rounded.WifiOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(46.dp))
+                                                Spacer(Modifier.height(8.dp))
                                                 Text(
-                                                    text = "Portal Belum Terdeteksi",
+                                                    text = "Portal Belum Terdeteksi (192.168.4.1)",
                                                     fontWeight = FontWeight.Black,
                                                     fontSize = 15.sp,
-                                                    color = NeoTokens.Black
+                                                    color = NeoTokens.Black,
+                                                    textAlign = TextAlign.Center
                                                 )
-                                                Spacer(Modifier.height(6.dp))
+                                                Spacer(Modifier.height(8.dp))
                                                 Text(
-                                                    text = webErrorMsg ?: "",
-                                                    fontSize = 12.sp,
-                                                    color = NeoTokens.Muted,
-                                                    textAlign = TextAlign.Center,
-                                                    lineHeight = 16.sp
+                                                    text = "Panduan Koneksi:\n1. Hubungkan Wi-Fi HP ke hotspot ESP32 ('Xiaozhi-XXXX' atau 'ESP32-AP').\n2. Jika HP memunculkan dialog 'Wi-Fi tidak ada internet', pilih 'Tetap Terhubung' (Stay Connected).\n3. Matikan sementara Data Seluler (4G/5G) agar HP tidak mengalihkan koneksi ke internet seluler.",
+                                                    fontSize = 11.5.sp,
+                                                    color = NeoTokens.Black,
+                                                    textAlign = TextAlign.Start,
+                                                    lineHeight = 16.sp,
+                                                    modifier = Modifier.background(NeoTokens.Cream, RoundedCornerShape(8.dp)).padding(10.dp)
                                                 )
-                                                Spacer(Modifier.height(14.dp))
-                                                Button(
-                                                    onClick = {
-                                                        webErrorMsg = null
-                                                        isWebLoading = true
-                                                        webViewRef?.loadUrl("http://192.168.4.1/")
-                                                    },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black)
+                                                Spacer(Modifier.height(12.dp))
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    modifier = Modifier.fillMaxWidth()
                                                 ) {
-                                                    Text("Coba Muat Ulang Lagi", fontWeight = FontWeight.Black, color = NeoTokens.White)
+                                                    Button(
+                                                        onClick = {
+                                                            context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.White),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text("Setelan Wi-Fi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = NeoTokens.Black)
+                                                    }
+                                                    Button(
+                                                        onClick = {
+                                                            webErrorMsg = null
+                                                            isWebLoading = true
+                                                            webViewRef?.loadUrl("http://192.168.4.1/")
+                                                        },
+                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text("Muat Ulang", fontWeight = FontWeight.Black, fontSize = 12.sp, color = NeoTokens.White)
+                                                    }
                                                 }
                                             }
                                         }

@@ -1270,6 +1270,17 @@ fun XiaozhiAuthScreen(
             }
         }
 
+        Spacer(Modifier.height(16.dp))
+
+        // App Version Footer
+        Text(
+            text = "Versi v1.4.0 (Build 7) • Chronchi & Xiaozhi AI",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = NeoTokens.Muted,
+            textAlign = TextAlign.Center
+        )
+
         Spacer(Modifier.height(40.dp))
     }
 }

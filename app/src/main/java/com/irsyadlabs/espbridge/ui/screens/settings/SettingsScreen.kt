@@ -151,6 +151,38 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            item {
+                SectionHeader("Informasi Aplikasi", "Versi & Rilis")
+            }
+
+            item {
+                PlayfulCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("Versi Aplikasi", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SketchBorder)
+                            Text("Chronchi ESPBridge & Xiaozhi AI", fontSize = 12.sp, color = SketchMuted)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = SketchTeal.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.5.dp, SketchTeal)
+                        ) {
+                            Text(
+                                text = "v1.4.0 (7)",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp,
+                                color = SketchTeal
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

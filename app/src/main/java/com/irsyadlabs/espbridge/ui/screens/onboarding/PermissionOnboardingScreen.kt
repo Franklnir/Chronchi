@@ -58,12 +58,14 @@ fun PermissionOnboardingScreen(onComplete: () -> Unit) {
             PermissionStep(
                 "Notification Access",
                 "Forward notifications only from apps you enable to your device.",
-                listOf("Secure transmission", "Messaging, Social, Finance & more", "Real-time protocol execution")
+                listOf("Secure transmission", "Messaging, Social, Finance & more", "Real-time protocol execution"),
+                optional = true
             ),
             PermissionStep(
                 "Nearby Devices",
                 "Scan, connect and automatically reconnect to your hardware over Bluetooth LE.",
-                listOf("Works without internet", "Direct phone-to-hardware sync", "Privacy focused link")
+                listOf("Works without internet", "Direct phone-to-hardware sync", "Privacy focused link"),
+                optional = true
             ),
             PermissionStep(
                 "Location Services",
@@ -118,8 +120,16 @@ fun PermissionOnboardingScreen(onComplete: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("ACCESS PROTOCOL", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = SketchBorder)
-                Text("${step + 1} / ${steps.size}", color = SketchTeal, fontWeight = FontWeight.ExtraBold)
+                Column {
+                    Text("ACCESS PROTOCOL", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = SketchBorder)
+                    Text("${step + 1} / ${steps.size}", color = SketchTeal, fontWeight = FontWeight.ExtraBold)
+                }
+                TextButton(
+                    onClick = onComplete,
+                    colors = ButtonDefaults.textButtonColors(contentColor = SketchTeal)
+                ) {
+                    Text("Lewati Semua ⏩", fontWeight = FontWeight.Black)
+                }
             }
             Spacer(Modifier.height(32.dp))
             
@@ -214,9 +224,16 @@ fun PermissionOnboardingScreen(onComplete: () -> Unit) {
                     }
                 }
             )
-            if (current.optional) {
-                TextButton(onClick = { if (step == steps.lastIndex) onComplete() else step++ }, modifier = Modifier.padding(top = 8.dp)) {
-                    Text("Skip for now", color = SketchMuted, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = { if (step == steps.lastIndex) onComplete() else step++ }) {
+                    Text("Lewati Langkah Ini", color = SketchMuted, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = onComplete) {
+                    Text("Aktifkan Nanti di Profil", color = SketchTeal, fontWeight = FontWeight.Black)
                 }
             }
         }

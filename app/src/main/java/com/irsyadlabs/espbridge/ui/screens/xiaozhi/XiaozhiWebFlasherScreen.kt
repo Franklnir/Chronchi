@@ -381,7 +381,7 @@ fun XiaozhiWebFlasherScreen(
                                     useWideViewPort = true
                                     loadWithOverviewMode = true
                                     cacheMode = WebSettings.LOAD_NO_CACHE
-                                    userAgentString = settings.userAgentString + " MobileFlasherApp/1.4.3"
+                                    userAgentString = settings.userAgentString + " MobileFlasherApp/1.4.4"
                                 }
                                 loadUrl(WEB_FLASHER_URL)
                                 webViewInstance = this

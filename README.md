@@ -11,15 +11,15 @@
 
 ## 📱 Download Aplikasi Android (Xichi Companion App)
 
-Scan QR Code Barcode di bawah ini menggunakan kamera ponsel atau aplikasi pemindai QR untuk langsung mengunduh file APK versi terbaru (`Xichi-v1.4.0-debug.apk`):
+Scan QR Code Barcode di bawah ini menggunakan kamera ponsel atau aplikasi pemindai QR untuk langsung mengunduh file APK versi terbaru (`Xichi-v1.4.1-debug.apk`):
 
 <p align="center">
-  <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&ecc=M&data=https%3A%2F%2Fgithub.com%2FFranklnir%2FChronchi%2Freleases%2Fdownload%2Fv1.4.0%2FXichi-v1.4.0-debug.apk" alt="QR Code Barcode Download Xichi APK" width="260" height="260" />
+  <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=10&ecc=M&data=https%3A%2F%2Fgithub.com%2FFranklnir%2FChronchi%2Freleases%2Fdownload%2Fv1.4.1%2FXichi-v1.4.1-debug.apk" alt="QR Code Barcode Download Xichi APK" width="260" height="260" />
 </p>
 
 ### 🔗 Link Unduhan APK:
-- 🚀 **[Klik di Sini untuk Mengunduh Langsung APK v1.4.0](https://github.com/Franklnir/Chronchi/releases/download/v1.4.0/Xichi-v1.4.0-debug.apk)** *(Ukuran file: ~44.3 MB)*
-- 🌐 **[Mirror Unduh Versi Rilis Terbaru (GitHub Latest)](https://github.com/Franklnir/Chronchi/releases/latest/download/Xichi-v1.4.0-debug.apk)**
+- 🚀 **[Klik di Sini untuk Mengunduh Langsung APK v1.4.1](https://github.com/Franklnir/Chronchi/releases/download/v1.4.1/Xichi-v1.4.1-debug.apk)** *(Ukuran file: ~44.3 MB)*
+- 🌐 **[Mirror Unduh Versi Rilis Terbaru (GitHub Latest)](https://github.com/Franklnir/Chronchi/releases/latest/download/Xichi-v1.4.1-debug.apk)**
 - 📦 **[Daftar Semua Rilis & Catatan Pembaruan](https://github.com/Franklnir/Chronchi/releases)**
 
 ## ✨ Fitur Utama

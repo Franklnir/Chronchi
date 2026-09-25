@@ -145,7 +145,7 @@ data class XiaozhiProfileData(
     val user: XiaozhiUser = XiaozhiUser(),
     val personaAnalysis: PersonaAnalysis = PersonaAnalysis(),
     val toolsCatalog: List<XiaozhiToolItem> = emptyList(),
-    val totalTools: Int = 39,
+    val totalTools: Int = 50,
     val mcpStatus: XiaozhiMcpStatus = XiaozhiMcpStatus()
 )
 

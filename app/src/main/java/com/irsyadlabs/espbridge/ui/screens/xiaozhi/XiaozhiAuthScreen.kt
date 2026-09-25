@@ -3,12 +3,7 @@ package com.irsyadlabs.espbridge.ui.screens.xiaozhi
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
-import android.graphics.Bitmap
 import android.provider.Settings
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -42,8 +37,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
+import com.irsyadlabs.espbridge.core.model.ConnectionState
 import com.irsyadlabs.espbridge.data.xiaozhi.XiaozhiMcpStatus
+import com.irsyadlabs.espbridge.transport.ble.ConnectedDeviceInfo
+import com.irsyadlabs.espbridge.transport.ble.DiscoveredBleDevice
+import com.irsyadlabs.espbridge.transport.ble.DiscoveredWifiNetwork
 import com.irsyadlabs.espbridge.ui.components.*
 import com.irsyadlabs.espbridge.ui.theme.NeoTokens
 
@@ -53,6 +51,15 @@ fun XiaozhiAuthScreen(
     operatingMode: String = "XIAOZHI_AI",
     isLoggedIn: Boolean = false,
     currentUsername: String? = null,
+    bleState: ConnectionState = ConnectionState.DISCONNECTED,
+    connectedDevice: ConnectedDeviceInfo? = null,
+    bleDevices: List<DiscoveredBleDevice> = emptyList(),
+    wifiNetworks: List<DiscoveredWifiNetwork> = emptyList(),
+    onScanBle: () -> Unit = {},
+    onConnectBle: (DiscoveredBleDevice) -> Unit = {},
+    onDisconnectBle: () -> Unit = {},
+    onScanWifi: () -> Unit = {},
+    onSendWifiConfig: (String, String) -> Unit = { _, _ -> },
     onLogin: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onRegister: (String, String, (Boolean, String?) -> Unit) -> Unit,
     onGoogleAuth: (isRegister: Boolean, onComplete: (Boolean, String?) -> Unit) -> Unit,
@@ -78,13 +85,13 @@ fun XiaozhiAuthScreen(
     var isBusy by remember { mutableStateOf(false) }
     var busyActionText by remember { mutableStateOf("Memproses...") }
 
-    // In-App WebView state for 192.168.4.1
-    var webViewRef by remember { mutableStateOf<WebView?>(null) }
-    var isWebLoading by remember { mutableStateOf(false) }
-    var webErrorMsg by remember { mutableStateOf<String?>(null) }
+    // BLE Wi-Fi Setup State
+    var wifiSsid by remember { mutableStateOf("") }
+    var wifiPassword by remember { mutableStateOf("") }
+    var isScanningWifi by remember { mutableStateOf(false) }
+    var configSent by remember { mutableStateOf(false) }
 
     // MCP Gating & Direct Input state
-    var showMcpInputSection by remember { mutableStateOf(false) }
     var mcpTokenInput by remember { mutableStateOf("") }
     var isConnectingMcp by remember { mutableStateOf(false) }
     var mcpStatusText by remember { mutableStateOf("") }
@@ -142,7 +149,7 @@ fun XiaozhiAuthScreen(
             text = if (isLoggedIn) {
                 "Halo, ${currentUsername ?: "Pengguna"}! Hubungkan WebSocket MCP xiaozhi.me untuk melanjutkan."
             } else if (isWifiTab) {
-                "Konfigurasi Wi-Fi offline langsung ke perangkat ESP32 via hotspot 192.168.4.1"
+                "Konfigurasi Wi-Fi instan ke perangkat ESP32 via Bluetooth LE yang stabil."
             } else if (isChronchiMode) {
                 "Satu akun terpadu untuk mengakses fitur Chronchi BLE dan Ekosistem Xiaozhi AI"
             } else {
@@ -505,8 +512,15 @@ fun XiaozhiAuthScreen(
 
             if (isWifiTab) {
                 // =========================================================================
-                // SUB-KASUS A: OFFLINE WI-FI WEB PORTAL (MODERN & TOUCH-OPTIMIZED)
+                // SUB-KASUS A: BLE WI-FI SETUP PORTAL (NATIVE, WORKS ONLINE & OFFLINE)
                 // =========================================================================
+                val isConnected = bleState == ConnectionState.CONNECTED
+
+                // Reset scanning state if networks arrive
+                LaunchedEffect(wifiNetworks) {
+                    if (wifiNetworks.isNotEmpty()) isScanningWifi = false
+                }
+                
                 NeoCard(
                     modifier = Modifier.fillMaxWidth(),
                     backgroundColor = NeoTokens.White,
@@ -521,21 +535,23 @@ fun XiaozhiAuthScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             NeoBadge(
-                                text = "100% OFFLINE (PORTAL AP)",
+                                text = "XIAOZHI WI-FI SETUP",
                                 backgroundColor = NeoTokens.Emerald,
                                 textColor = NeoTokens.White
                             )
-                            NeoBadge(
-                                text = "192.168.4.1",
-                                backgroundColor = NeoTokens.MintLight,
-                                textColor = Color(0xFF065F46)
-                            )
+                            if (isConnected) {
+                                NeoBadge(
+                                    text = "TERHUBUNG",
+                                    backgroundColor = NeoTokens.Blue,
+                                    textColor = NeoTokens.White
+                                )
+                            }
                         }
 
                         Spacer(Modifier.height(12.dp))
 
                         Text(
-                            text = "Konfigurasi Wi-Fi & ESP32",
+                            text = "Konfigurasi Wi-Fi Xiaozhi",
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp,
                             color = NeoTokens.Black
@@ -544,351 +560,198 @@ fun XiaozhiAuthScreen(
                         Spacer(Modifier.height(4.dp))
 
                         Text(
-                            text = "Atur koneksi Wi-Fi perangkat keras ESP32 secara instan langsung dari ponsel Anda tanpa koneksi internet.",
+                            text = "Pilih ESP32 Anda dari daftar di bawah ini untuk memulai konfigurasi Wi-Fi secara instan melalui Bluetooth LE tanpa perlu mematikan Data Seluler ponsel Anda.",
                             fontSize = 12.5.sp,
                             color = NeoTokens.Muted,
                             lineHeight = 17.sp
                         )
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(16.dp))
 
-                        // Step-by-Step Guidance Box
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
-                                .border(1.5.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Panduan Langkah Cepat:",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 12.5.sp,
-                                color = NeoTokens.Black
-                            )
-                            Row(verticalAlignment = Alignment.Top) {
-                                Text("1️⃣", fontSize = 12.sp)
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Nyalakan ESP32 hingga mode hotspot aktif (misal 'Xiaozhi-XXXX' atau 'ESP32-AP').",
-                                    fontSize = 12.sp,
-                                    color = NeoTokens.Dark,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.Top) {
-                                Text("2️⃣", fontSize = 12.sp)
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Sambungkan Wi-Fi ponsel Anda ke hotspot ESP32 tersebut.",
-                                    fontSize = 12.sp,
-                                    color = NeoTokens.Dark,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                            Row(verticalAlignment = Alignment.Top) {
-                                Text("3️⃣", fontSize = 12.sp)
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Jika ada notifikasi 'Wi-Fi tanpa internet', pilih 'Tetap Terhubung' dan matikan Data Seluler sementara.",
-                                    fontSize = 12.sp,
-                                    color = NeoTokens.Dark,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        // Quick Action Buttons
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    try {
-                                        context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
-                                    } catch (e: Exception) {}
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Yellow),
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                modifier = Modifier.weight(1f).height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp)
+                        if (!isConnected) {
+                            // BLE Scanning Section
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
+                                    .border(1.5.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.Wifi, null, tint = NeoTokens.Black, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Setelan Wi-Fi HP", color = NeoTokens.Black, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
-                                }
-                            }
+                                Text(
+                                    text = "Daftar ESP32 di Sekitar",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    color = NeoTokens.Black
+                                )
 
-                            Button(
-                                onClick = {
-                                    webErrorMsg = null
-                                    isWebLoading = true
-                                    webViewRef?.loadUrl("http://192.168.4.1/")
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                modifier = Modifier.weight(1f).height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.Refresh, null, tint = NeoTokens.White, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Muat Ulang", color = NeoTokens.White, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
-                                }
-                            }
+                                NeoButton(
+                                    text = if (bleState == ConnectionState.SCANNING) "MENCARI PERANGKAT..." else "CARI PERANGKAT ESP32",
+                                    loading = bleState == ConnectionState.SCANNING,
+                                    onClick = onScanBle,
+                                    color = NeoTokens.Yellow,
+                                    textColor = NeoTokens.Black
+                                )
 
-                            Button(
-                                onClick = {
-                                    try {
-                                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("http://192.168.4.1/")).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        }
-                                        context.startActivity(browserIntent)
-                                    } catch (e: Exception) {}
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.White),
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                modifier = Modifier.weight(1f).height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.OpenInNew, null, tint = NeoTokens.Black, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Di Browser", color = NeoTokens.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        // Modern Browser Mockup Frame
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(620.dp)
-                                .background(NeoTokens.White, RoundedCornerShape(14.dp))
-                                .border(2.dp, NeoTokens.Black, RoundedCornerShape(14.dp))
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                // Address Bar Header
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(44.dp)
-                                        .background(Color(0xFFF1F5F9))
-                                        .border(
-                                            androidx.compose.foundation.BorderStroke(1.dp, NeoTokens.Black.copy(alpha = 0.2f))
-                                        )
-                                        .padding(horizontal = 10.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        // macOS Window Dots
-                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Box(Modifier.size(10.dp).background(NeoTokens.Coral, CircleShape))
-                                            Box(Modifier.size(10.dp).background(NeoTokens.Yellow, CircleShape))
-                                            Box(Modifier.size(10.dp).background(NeoTokens.Emerald, CircleShape))
-                                        }
-
-                                        // URL Pill
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 10.dp)
-                                                .height(28.dp)
-                                                .background(NeoTokens.White, RoundedCornerShape(6.dp))
-                                                .border(1.dp, NeoTokens.Black.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
-                                                .padding(horizontal = 8.dp),
-                                            contentAlignment = Alignment.CenterStart
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Rounded.Lock, null, tint = NeoTokens.Emerald, modifier = Modifier.size(12.dp))
-                                                Spacer(Modifier.width(6.dp))
-                                                Text(
-                                                    text = "http://192.168.4.1/",
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = NeoTokens.Black
-                                                )
-                                            }
-                                        }
-
-                                        // Reload Icon
-                                        IconButton(
-                                            onClick = {
-                                                webErrorMsg = null
-                                                isWebLoading = true
-                                                webViewRef?.loadUrl("http://192.168.4.1/")
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        ) {
-                                            Icon(Icons.Rounded.Refresh, null, tint = NeoTokens.Black, modifier = Modifier.size(16.dp))
-                                        }
-                                    }
-                                }
-
-                                // WebView Container
-                                Box(modifier = Modifier.fillMaxSize()) {
-                                    AndroidView(
-                                        factory = { ctx ->
-                                            WebView(ctx).apply {
-                                                settings.javaScriptEnabled = true
-                                                settings.domStorageEnabled = true
-                                                settings.useWideViewPort = true
-                                                settings.loadWithOverviewMode = true
-                                                settings.setSupportZoom(true)
-                                                settings.builtInZoomControls = true
-                                                settings.displayZoomControls = false
-
-                                                // Enable smooth touch inside nested scroll
-                                                setOnTouchListener { v, event ->
-                                                    v.parent?.requestDisallowInterceptTouchEvent(true)
-                                                    false
-                                                }
-
-                                                webViewClient = object : WebViewClient() {
-                                                    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                                                        super.onPageStarted(view, url, favicon)
-                                                        isWebLoading = true
-                                                        webErrorMsg = null
-                                                    }
-
-                                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                                        super.onPageFinished(view, url)
-                                                        isWebLoading = false
-                                                    }
-
-                                                    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                                                        super.onReceivedError(view, request, error)
-                                                        if (request?.isForMainFrame == true) {
-                                                            isWebLoading = false
-                                                            webErrorMsg = "Belum dapat terhubung ke 192.168.4.1"
-                                                        }
-                                                    }
-                                                }
-                                                webViewRef = this
-                                                loadUrl("http://192.168.4.1/")
-                                            }
-                                        },
-                                        update = { webViewRef = it },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-
-                                    // Loading Indicator Overlay
-                                    if (isWebLoading) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White.copy(alpha = 0.88f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                CircularProgressIndicator(color = NeoTokens.Emerald, strokeWidth = 3.dp)
-                                                Spacer(Modifier.height(10.dp))
-                                                Text(
-                                                    text = "Memuat portal web 192.168.4.1...",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 12.5.sp,
-                                                    color = NeoTokens.Black
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    // Error Message Overlay
-                                    if (webErrorMsg != null) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White).padding(16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                                if (bleDevices.isNotEmpty()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        bleDevices.forEach { device ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(NeoTokens.White, RoundedCornerShape(8.dp))
+                                                    .border(1.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                                    .padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Icon(Icons.Rounded.WifiOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(48.dp))
-                                                Spacer(Modifier.height(8.dp))
-                                                Text(
-                                                    text = "Portal ESP32 Belum Terdeteksi",
-                                                    fontWeight = FontWeight.Black,
-                                                    fontSize = 16.sp,
-                                                    color = NeoTokens.Black,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                                Spacer(Modifier.height(8.dp))
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
-                                                        .border(1.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                                                        .padding(12.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "Langkah Perbaikan:",
-                                                        fontWeight = FontWeight.Black,
-                                                        fontSize = 12.sp,
-                                                        color = NeoTokens.Black
-                                                    )
-                                                    Text(
-                                                        text = "1. Pastikan ponsel sudah terhubung ke hotspot Wi-Fi ESP32 ('Xiaozhi-XXXX').",
-                                                        fontSize = 11.5.sp,
-                                                        color = NeoTokens.Dark
-                                                    )
-                                                    Text(
-                                                        text = "2. Jika muncul peringatan 'Wi-Fi tanpa internet', wajib pilih 'Tetap Terhubung' (Stay Connected).",
-                                                        fontSize = 11.5.sp,
-                                                        color = NeoTokens.Dark
-                                                    )
-                                                    Text(
-                                                        text = "3. Matikan sementara Data Seluler (4G/5G) agar koneksi tidak dialihkan ke jaringan seluler.",
-                                                        fontSize = 11.5.sp,
-                                                        color = NeoTokens.Dark
-                                                    )
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(device.name, fontWeight = FontWeight.Black, fontSize = 13.sp, color = NeoTokens.Black)
+                                                    Text(device.address, fontSize = 11.sp, color = NeoTokens.Muted)
                                                 }
-                                                Spacer(Modifier.height(14.dp))
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    modifier = Modifier.fillMaxWidth()
+                                                val isConnecting = bleState == ConnectionState.CONNECTING || bleState == ConnectionState.DISCOVERING
+                                                Button(
+                                                    onClick = { onConnectBle(device) },
+                                                    enabled = !isConnecting,
+                                                    colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                                    modifier = Modifier.height(32.dp)
                                                 ) {
-                                                    Button(
-                                                        onClick = {
-                                                            context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Yellow),
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                                        modifier = Modifier.weight(1f)
-                                                    ) {
-                                                        Text("Setelan Wi-Fi", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = NeoTokens.Black)
-                                                    }
-                                                    Button(
-                                                        onClick = {
-                                                            webErrorMsg = null
-                                                            isWebLoading = true
-                                                            webViewRef?.loadUrl("http://192.168.4.1/")
-                                                        },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                                        modifier = Modifier.weight(1f)
-                                                    ) {
-                                                        Text("Muat Ulang", fontWeight = FontWeight.Black, fontSize = 12.sp, color = NeoTokens.White)
-                                                    }
+                                                    Text("PAIR", fontWeight = FontWeight.Black, fontSize = 11.sp, color = NeoTokens.White)
                                                 }
                                             }
                                         }
                                     }
                                 }
+                            }
+                        } else {
+                            // Connected & Wi-Fi Setup Section
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
+                                    .border(1.5.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Langkah 2: Setup Wi-Fi",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 14.sp,
+                                        color = NeoTokens.Black
+                                    )
+                                    TextButton(
+                                        onClick = onDisconnectBle,
+                                        contentPadding = PaddingValues(0.dp),
+                                        modifier = Modifier.height(24.dp)
+                                    ) {
+                                        Text("Putuskan BLE", color = NeoTokens.Coral, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        isScanningWifi = true
+                                        onScanWifi()
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeoTokens.Black)
+                                ) {
+                                    if (isScanningWifi) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = NeoTokens.Black)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("MEMINDAI WI-FI...", fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    } else {
+                                        Icon(Icons.Rounded.WifiFind, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("SCAN WI-FI SEKITAR", fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    }
+                                }
+
+                                if (wifiNetworks.isNotEmpty()) {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().heightIn(max = 200.dp).verticalScroll(rememberScrollState()),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        wifiNetworks.forEach { net ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(NeoTokens.White, RoundedCornerShape(6.dp))
+                                                    .border(1.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                                    .clickable { 
+                                                        wifiSsid = net.ssid
+                                                        configSent = false
+                                                    }
+                                                    .padding(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(
+                                                    if (net.secure) Icons.Rounded.WifiLock else Icons.Rounded.Wifi,
+                                                    contentDescription = null,
+                                                    tint = NeoTokens.Blue,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(net.ssid, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = NeoTokens.Black)
+                                                    Text("${net.rssi} dBm", fontSize = 11.sp, color = NeoTokens.Muted)
+                                                }
+                                                if (wifiSsid == net.ssid) {
+                                                    Icon(Icons.Rounded.CheckCircle, null, tint = NeoTokens.Emerald, modifier = Modifier.size(20.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+
+                                NeoTextField(
+                                    value = wifiSsid,
+                                    onValueChange = { 
+                                        wifiSsid = it
+                                        configSent = false 
+                                    },
+                                    label = "SSID (Nama Wi-Fi)",
+                                    placeholder = "Pilih dari daftar atau ketik",
+                                    leadingIcon = Icons.Rounded.Wifi
+                                )
+
+                                NeoTextField(
+                                    value = wifiPassword,
+                                    onValueChange = { 
+                                        wifiPassword = it
+                                        configSent = false 
+                                    },
+                                    label = "Password",
+                                    placeholder = "Masukkan password Wi-Fi",
+                                    leadingIcon = Icons.Rounded.Lock,
+                                    isPassword = true
+                                )
+
+                                Spacer(Modifier.height(8.dp))
+
+                                NeoButton(
+                                    text = if (configSent) "✓ KONFIGURASI TERKIRIM" else "KIRIM KE ESP32",
+                                    onClick = {
+                                        if (wifiSsid.isNotBlank()) {
+                                            onSendWifiConfig(wifiSsid, wifiPassword)
+                                            configSent = true
+                                        }
+                                    },
+                                    enabled = wifiSsid.isNotBlank() && !configSent,
+                                    color = if (configSent) NeoTokens.Emerald else NeoTokens.Blue,
+                                    textColor = NeoTokens.White
+                                )
                             }
                         }
                     }
@@ -917,7 +780,6 @@ fun XiaozhiAuthScreen(
                                         if (isChronchiMode) {
                                             onAuthSuccessAndConnected()
                                         } else if (msg == "MCP_REQUIRED") {
-                                            showMcpInputSection = true
                                             mcpStatusText = "Akun Google terhubung! Silakan masukkan endpoint MCP."
                                         } else {
                                             onAuthSuccessAndConnected()
@@ -1099,7 +961,6 @@ fun XiaozhiAuthScreen(
                                         if (isChronchiMode) {
                                             onAuthSuccessAndConnected()
                                         } else if (msg == "MCP_REQUIRED") {
-                                            showMcpInputSection = true
                                             mcpStatusText = "Sesi masuk, silakan hubungkan MCP WebSocket."
                                         } else {
                                             onAuthSuccessAndConnected()
@@ -1115,7 +976,6 @@ fun XiaozhiAuthScreen(
                                         if (isChronchiMode) {
                                             onAuthSuccessAndConnected()
                                         } else if (msg == "MCP_REQUIRED") {
-                                            showMcpInputSection = true
                                             mcpStatusText = "Akun berhasil dibuat! Silakan hubungkan MCP endpoint."
                                         } else {
                                             onAuthSuccessAndConnected()
@@ -1148,191 +1008,13 @@ fun XiaozhiAuthScreen(
                         }
                     }
 
-                    // Quick toggle to show MCP input if user wants to setup early (only in Xiaozhi mode)
-                    if (!isChronchiMode && !showMcpInputSection) {
-                        Spacer(Modifier.height(6.dp))
-                        TextButton(
-                            onClick = { showMcpInputSection = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.Link, null, tint = NeoTokens.Muted, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "Punya endpoint MCP dari xiaozhi.me? Hubungkan di sini",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeoTokens.Muted
-                                )
-                            }
-                        }
-                    }
+                    // Quick toggle to show MCP input removed
                 }
             }
 
             // Animated MCP Connection Section
-            if (!isChronchiMode) {
-                AnimatedVisibility(
-                    visible = showMcpInputSection,
-                    enter = expandVertically() + fadeIn()
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                        NeoCard(
-                            modifier = Modifier.fillMaxWidth(),
-                            backgroundColor = NeoTokens.MintLight,
-                            borderColor = NeoTokens.Black,
-                            contentPadding = PaddingValues(20.dp)
-                        ) {
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    NeoBadge(
-                                        text = if (mcpConnectedSuccess) "MCP TERHUBUNG" else "KONEKSI MCP DIBUTUHKAN",
-                                        backgroundColor = if (mcpConnectedSuccess) NeoTokens.Emerald else NeoTokens.Yellow,
-                                        textColor = if (mcpConnectedSuccess) NeoTokens.White else NeoTokens.Black
-                                    )
-                                    NeoPulseIndicator(active = isConnectingMcp || mcpConnectedSuccess)
-                                }
-
-                                Spacer(Modifier.height(14.dp))
-
-                                Text(
-                                    text = "Hubungkan Endpoint MCP Xichi",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp,
-                                    color = NeoTokens.Black
-                                )
-
-                                Text(
-                                    text = "Silakan ambil MCP endpoint di xiaozhi.me lalu tempelkan di bawah ini:",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeoTokens.Dark,
-                                    modifier = Modifier.padding(top = 6.dp, bottom = 10.dp)
-                                )
-
-                                Button(
-                                    onClick = { uriHandler.openUri("https://xiaozhi.me") },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = NeoTokens.White,
-                                        contentColor = NeoTokens.Black
-                                    ),
-                                    shape = RoundedCornerShape(8.dp),
-                                    border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    modifier = Modifier.padding(bottom = 14.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.OpenInNew,
-                                            contentDescription = null,
-                                            tint = NeoTokens.Emerald,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = "Buka xiaozhi.me ↗",
-                                            fontWeight = FontWeight.Black,
-                                            fontSize = 13.sp,
-                                            color = NeoTokens.Black
-                                        )
-                                    }
-                                }
-
-                                NeoTextField(
-                                    value = mcpTokenInput,
-                                    onValueChange = { 
-                                        mcpTokenInput = it
-                                        mcpStatusText = ""
-                                    },
-                                    label = "WebSocket MCP Endpoint",
-                                    placeholder = "wss://api.xiaozhi.me/mcp/?token=...",
-                                    leadingIcon = Icons.Rounded.Key,
-                                    trailingIcon = {
-                                        IconButton(
-                                            onClick = {
-                                                val clip = clipboardManager.getText()?.text?.trim().orEmpty()
-                                                if (clip.isNotBlank()) mcpTokenInput = clip
-                                            }
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.ContentPaste,
-                                                contentDescription = "Tempel dari Clipboard",
-                                                tint = NeoTokens.Black
-                                            )
-                                        }
-                                    }
-                                )
-
-                                if (mcpStatusText.isNotBlank()) {
-                                    Spacer(Modifier.height(12.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (isConnectingMcp) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(18.dp),
-                                                strokeWidth = 2.5.dp,
-                                                color = NeoTokens.Emerald
-                                            )
-                                        } else {
-                                            Icon(
-                                                imageVector = if (mcpConnectedSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.Info,
-                                                contentDescription = null,
-                                                tint = if (mcpConnectedSuccess) NeoTokens.Emerald else NeoTokens.Coral,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = mcpStatusText,
-                                            fontSize = 12.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = if (mcpConnectedSuccess) NeoTokens.Emerald else NeoTokens.Coral
-                                        )
-                                    }
-                                }
-
-                                Spacer(Modifier.height(20.dp))
-
-                                NeoButton(
-                                    text = if (isConnectingMcp) "MENGHUBUNGKAN MCP..." else if (mcpConnectedSuccess) "MASUK KE DASHBOARD" else "⚡ HUBUNGKAN SEKARANG",
-                                    loading = isConnectingMcp,
-                                    enabled = !isConnectingMcp && (mcpTokenInput.isNotBlank() || mcpConnectedSuccess),
-                                    onClick = {
-                                        if (mcpConnectedSuccess) {
-                                            onAuthSuccessAndConnected()
-                                            return@NeoButton
-                                        }
-                                        val cleanEndpoint = mcpTokenInput.trim()
-                                        if (!cleanEndpoint.startsWith("wss://") && !cleanEndpoint.startsWith("ws://")) {
-                                            mcpStatusText = "Endpoint MCP tidak valid. Wajib diawali wss:// atau ws://"
-                                            return@NeoButton
-                                        }
-                                        isConnectingMcp = true
-                                        mcpStatusText = "Menyimpan endpoint & menghubungkan WebSocket..."
-                                        onSaveAndConnectMcp(cleanEndpoint, { status ->
-                                            mcpStatusText = status.statusText
-                                        }) { connected ->
-                                            isConnectingMcp = false
-                                            if (connected) {
-                                                mcpConnectedSuccess = true
-                                                mcpStatusText = "🎉 Berhasil Terhubung ke XiaoZhi! Mengalihkan..."
-                                                onAuthSuccessAndConnected()
-                                            } else {
-                                                mcpStatusText = "Koneksi belum berhasil. Periksa kembali endpoint WebSocket Anda."
-                                            }
-                                        }
-                                    },
-                                    color = NeoTokens.Emerald,
-                                    textColor = NeoTokens.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            // Removed MCP connection section from unauthenticated view.
+            // The MCP connection section will only be visible in KASUS 1 (isLoggedIn = true).
         }
         }
 
@@ -1373,7 +1055,7 @@ fun XiaozhiAuthScreen(
 
         // App Version Footer
         Text(
-            text = "Versi v1.4.0 (Build 7) • Chronchi & Xiaozhi AI",
+            text = "Versi v1.4.1 (Build 8) • Chronchi & Xiaozhi AI",
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
             color = NeoTokens.Muted,

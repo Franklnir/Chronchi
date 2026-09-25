@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -462,8 +463,11 @@ fun XiaozhiProfileScreen(
         Spacer(Modifier.height(18.dp))
 
         // ── 3. Akun Google Integration ──
-        val isGoogleLinked = !user.googleId.isNullOrBlank() || !user.googleEmail.isNullOrBlank()
+        val isGoogleLinked = (!user.googleId.isNullOrBlank() && user.googleId != "null") || 
+                             (!user.googleEmail.isNullOrBlank() && user.googleEmail != "null")
         val isRegisteredViaGoogle = user.registeredWithGoogle
+
+        val displayEmail = user.googleEmail?.takeIf { it != "null" && it.isNotBlank() }
 
         NeoCard(
             modifier = Modifier.fillMaxWidth(),
@@ -495,7 +499,7 @@ fun XiaozhiProfileScreen(
                                 color = NeoTokens.Black
                             )
                             Text(
-                                text = if (isGoogleLinked) (user.googleEmail ?: "Akun Google Terhubung") else "Belum ditautkan ke Google",
+                                text = if (isGoogleLinked) (displayEmail ?: "Akun Google Terhubung") else "Belum ditautkan ke Google",
                                 fontSize = 12.5.sp,
                                 fontWeight = if (isGoogleLinked) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isGoogleLinked) NeoTokens.Dark else NeoTokens.Muted
@@ -565,30 +569,43 @@ fun XiaozhiProfileScreen(
                                 ),
                                 shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Coral),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                modifier = Modifier.height(38.dp)
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Rounded.LinkOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = "Putuskan Tautan Google",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = NeoTokens.Coral
-                                    )
+                                    Icon(Icons.Rounded.LinkOff, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Putuskan Tautan", fontWeight = FontWeight.Black, fontSize = 12.sp)
                                 }
                             }
                         }
                     }
                 } else {
-                    // Not linked: Provide link button
-                    NeoButton(
-                        text = "TAUTKAN DENGAN GOOGLE",
+                    // Not linked: Provide link option
+                    Button(
                         onClick = onLinkGoogle,
-                        color = NeoTokens.White,
-                        textColor = NeoTokens.Black,
-                        modifier = Modifier.height(44.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeoTokens.White,
+                            contentColor = NeoTokens.Blue
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Blue),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Rounded.Link, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Tautkan dengan Google Sekarang", fontWeight = FontWeight.Black, fontSize = 13.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Tautkan akun Google Anda untuk memungkinkan login cepat ('Masuk dengan Google') di masa mendatang tanpa perlu mengingat password.",
+                        fontSize = 12.sp,
+                        color = NeoTokens.Dark,
+                        lineHeight = 17.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                     )
                 }
             }

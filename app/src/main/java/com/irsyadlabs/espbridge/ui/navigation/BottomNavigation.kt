@@ -4,13 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -34,13 +32,15 @@ val mainDestinations = listOf(
 
 sealed class XiaozhiDestination(val route: String, val label: String) {
     data object Dashboard : XiaozhiDestination("xiaozhi_dashboard", "Dashboard")
-    data object ChatHistory : XiaozhiDestination("xiaozhi_chat", "Riwayat Chat")
-    data object Profile : XiaozhiDestination("xiaozhi_profile", "Profile")
+    data object ChatHistory : XiaozhiDestination("xiaozhi_chat", "Riwayat")
+    data object UserList : XiaozhiDestination("xiaozhi_users", "Daftar User")
+    data object Profile : XiaozhiDestination("xiaozhi_profile", "Profil")
 }
 
 val xiaozhiDestinations = listOf(
     XiaozhiDestination.Dashboard,
     XiaozhiDestination.ChatHistory,
+    XiaozhiDestination.UserList,
     XiaozhiDestination.Profile
 )
 
@@ -73,7 +73,28 @@ fun MainBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
 }
 
 @Composable
-fun XiaozhiBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
+fun XiaozhiBottomBar(
+    currentRoute: String?,
+    isAdmin: Boolean = false,
+    onNavigate: (String) -> Unit
+) {
+    val items = remember(isAdmin) {
+        if (isAdmin) {
+            listOf(
+                XiaozhiDestination.Dashboard,
+                XiaozhiDestination.ChatHistory,
+                XiaozhiDestination.UserList,
+                XiaozhiDestination.Profile
+            )
+        } else {
+            listOf(
+                XiaozhiDestination.Dashboard,
+                XiaozhiDestination.ChatHistory,
+                XiaozhiDestination.Profile
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -86,11 +107,12 @@ fun XiaozhiBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
                 .border(width = NeoTokens.BorderWidth, color = NeoTokens.Black),
             containerColor = NeoTokens.White
         ) {
-            xiaozhiDestinations.forEach { item ->
+            items.forEach { item ->
                 val selected = currentRoute == item.route
                 val icon = when (item) {
                     XiaozhiDestination.Dashboard -> Icons.Rounded.Dashboard
                     XiaozhiDestination.ChatHistory -> Icons.Rounded.Forum
+                    XiaozhiDestination.UserList -> Icons.Rounded.People
                     XiaozhiDestination.Profile -> Icons.Rounded.Person
                 }
                 NavigationBarItem(
@@ -107,7 +129,8 @@ fun XiaozhiBottomBar(currentRoute: String?, onNavigate: (String) -> Unit) {
                         Text(
                             item.label,
                             fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
+                            maxLines = 1,
                             color = if (selected) NeoTokens.Black else NeoTokens.Muted
                         )
                     },

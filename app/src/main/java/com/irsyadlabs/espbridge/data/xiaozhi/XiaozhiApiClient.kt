@@ -124,7 +124,8 @@ class XiaozhiApiClient(
                     createdAt = uObj.optString("created_at", ""),
                     googleId = uObj.optString("google_id").takeIf { it.isNotBlank() },
                     googleEmail = uObj.optString("google_email").takeIf { it.isNotBlank() },
-                    registeredWithGoogle = uObj.optBoolean("registered_with_google", false)
+                    registeredWithGoogle = uObj.optBoolean("registered_with_google", false),
+                    deviceMac = uObj.optString("device_mac").takeIf { it.isNotBlank() }
                 )
 
                 // Stats
@@ -370,7 +371,8 @@ class XiaozhiApiClient(
                     createdAt = userObj.optString("created_at", ""),
                     googleId = userObj.optString("google_id").takeIf { it.isNotBlank() },
                     googleEmail = userObj.optString("google_email").takeIf { it.isNotBlank() },
-                    registeredWithGoogle = userObj.optBoolean("registered_with_google", false)
+                    registeredWithGoogle = userObj.optBoolean("registered_with_google", false),
+                    deviceMac = userObj.optString("device_mac").takeIf { it.isNotBlank() }
                 )
                 val personaObj = json.optJSONObject("persona_analysis")
                 val persona = parsePersona(personaObj)
@@ -471,6 +473,47 @@ class XiaozhiApiClient(
         if (code in 200..299) Result.success(true) else Result.failure(Exception("Gagal mengubah relay ($code)"))
     }
 
+    
+    // ── Admin Endpoints ──
+    suspend fun getAdminUsers(accessToken: String): Result<List<XiaozhiAdminUserItem>> = withContext(Dispatchers.IO) {
+        val (code, response) = executeRequest("/api/v1/admin/users", "GET", token = accessToken)
+        if (code in 200..299 && response != null) {
+            try {
+                val json = JSONObject(response)
+                val usersArr = json.optJSONArray("users") ?: JSONArray()
+                val list = mutableListOf<XiaozhiAdminUserItem>()
+                for (i in 0 until usersArr.length()) {
+                    val u = usersArr.getJSONObject(i)
+                    val mcpObj = u.optJSONObject("mcp_status") ?: JSONObject()
+                    val mcp = XiaozhiAdminMcpStatus(
+                        hasToken = mcpObj.optBoolean("has_token", false),
+                        connected = mcpObj.optBoolean("connected", false),
+                        message = mcpObj.optString("message", "")
+                    )
+                    list.add(
+                        XiaozhiAdminUserItem(
+                            id = u.optInt("id", 0),
+                            username = u.optString("username", ""),
+                            role = u.optString("role", "user"),
+                            createdAt = u.optString("created_at", ""),
+                            deviceMac = u.optString("device_mac", ""),
+                            deviceName = u.optString("device_name", ""),
+                            isPlaying = u.optBoolean("is_playing", false),
+                            currentTrack = u.optString("current_track", ""),
+                            mcpStatus = mcp
+                        )
+                    )
+                }
+                Result.success(list)
+            } catch (e: Exception) {
+                Result.failure(Exception("Gagal menguraikan daftar pengguna: ${e.localizedMessage}"))
+            }
+        } else {
+            val errorMsg = parseErrorMessage(response) ?: "Gagal memuat daftar pengguna ($code)"
+            Result.failure(Exception(errorMsg))
+        }
+    }
+
     private fun parseAuthResponse(code: Int, response: String?): XiaozhiAuthResult {
         if (code in 200..299 && response != null) {
             return try {
@@ -484,7 +527,8 @@ class XiaozhiApiClient(
                         role = userObj.optString("role", "user"),
                         googleId = userObj.optString("google_id").takeIf { it.isNotBlank() },
                         googleEmail = userObj.optString("google_email").takeIf { it.isNotBlank() },
-                        registeredWithGoogle = userObj.optBoolean("registered_with_google", false)
+                        registeredWithGoogle = userObj.optBoolean("registered_with_google", false),
+                        deviceMac = userObj.optString("device_mac").takeIf { it.isNotBlank() }
                     )
                 } else null
                 XiaozhiAuthResult(

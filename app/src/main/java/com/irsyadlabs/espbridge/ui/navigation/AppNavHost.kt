@@ -1,6 +1,8 @@
 package com.irsyadlabs.espbridge.ui.navigation
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -25,8 +27,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.irsyadlabs.espbridge.EspBridgeApp
 import com.irsyadlabs.espbridge.MainViewModel
-import com.irsyadlabs.espbridge.ui.screens.auth.LoginScreen
-import com.irsyadlabs.espbridge.ui.screens.auth.RegisterScreen
 import com.irsyadlabs.espbridge.ui.screens.home.HomeScreen
 import com.irsyadlabs.espbridge.ui.screens.mode.ModeSelectionScreen
 import com.irsyadlabs.espbridge.ui.screens.onboarding.PermissionOnboardingScreen
@@ -37,6 +37,7 @@ import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiAuthScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiChatHistoryScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiDashboardScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiProfileScreen
+import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiUserListScreen
 import com.irsyadlabs.espbridge.ui.theme.NeoTokens
 import com.irsyadlabs.espbridge.ui.theme.PaperWhite
 
@@ -77,41 +78,21 @@ fun AppNavHost(viewModel: MainViewModel) {
         )
     }
 
-    val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val account = runCatching {
-            GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
-        }.getOrNull()
-        val token = account?.idToken
-        if (token != null) viewModel.firebaseGoogleToken(token)
-        else viewModel.showMessage("Google Sign-In dibatalkan atau ID token tidak tersedia.")
-    }
-
-    val beginGoogleSignIn: () -> Unit = {
-        if (!state.firebaseReady) {
-            viewModel.googleDemoLogin()
-        } else if (activity != null) {
-            val id = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
-            if (id == 0) {
-                viewModel.showMessage("Firebase Google OAuth client belum tersedia. Periksa google-services.json.")
-            } else {
-                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                    .requestIdToken(context.getString(id))
-                    .requestEmail()
-                    .build()
-                val client = GoogleSignIn.getClient(activity, options)
-                googleLauncher.launch(client.signInIntent)
-            }
-        }
-    }
-
+    // Google Sign-In Client ID untuk Xiaozhi AI & Backend Terpadu
     val xiaozhiWebClientId = "3260223826-k8qrmthkeegt36pvnbac3oqurnmcmnvq.apps.googleusercontent.com"
     var pendingXiaozhiGoogleAction by remember { mutableStateOf("login") }
     var pendingXiaozhiGoogleCallback by remember { mutableStateOf<((Boolean, String?) -> Unit)?>(null) }
 
     val xiaozhiGoogleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val account = runCatching {
+        var apiExceptionCode: Int? = null
+        val account = try {
             GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
-        }.getOrNull()
+        } catch (e: ApiException) {
+            apiExceptionCode = e.statusCode
+            null
+        } catch (e: Exception) {
+            null
+        }
         val token = account?.idToken
         val action = pendingXiaozhiGoogleAction
         val cb = pendingXiaozhiGoogleCallback
@@ -121,6 +102,12 @@ fun AppNavHost(viewModel: MainViewModel) {
                 if (success) {
                     if (action == "link") {
                         viewModel.showMessage(msg ?: "Akun Google berhasil ditautkan!")
+                    } else if (state.settings.operatingMode == "CHRONCHI_BLE") {
+                        viewModel.showMessage("Selamat datang di Chronchi!")
+                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                        navController.navigate(target) {
+                            popUpTo(ROUTE_LOGIN) { inclusive = true }
+                        }
                     } else if (msg != "MCP_REQUIRED") {
                         viewModel.showMessage("Selamat datang di Xichi!")
                         navController.navigate(XiaozhiDestination.Dashboard.route) {
@@ -131,9 +118,22 @@ fun AppNavHost(viewModel: MainViewModel) {
                     viewModel.showMessage(msg ?: "Autentikasi Google gagal.")
                 }
             }
+        } else if (apiExceptionCode != null && apiExceptionCode != 12501) {
+            // ApiException (10 = DEVELOPER_ERROR / SHA-1 mismatch, etc.) -> Seamless browser Web OAuth!
+            viewModel.showMessage("Mengalihkan ke Web OAuth Google via Browser...")
+            val webUri = if (action == "link") {
+                val tok = state.settings.xiaozhiAccessToken ?: ""
+                Uri.parse("https://xiaozhiscig.biz.id/api/auth/google/link?token=${Uri.encode(tok)}&source=mobile")
+            } else {
+                Uri.parse("https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile")
+            }
+            val intent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
         } else {
-            cb?.invoke(false, "Google Sign-In dibatalkan atau token tidak tersedia.")
-            viewModel.showMessage("Google Sign-In dibatalkan atau token tidak tersedia.")
+            cb?.invoke(false, "Google Sign-In dibatalkan.")
+            viewModel.showMessage("Google Sign-In dibatalkan.")
         }
     }
 
@@ -167,7 +167,8 @@ fun AppNavHost(viewModel: MainViewModel) {
                     }
                 }
             } else if (route in xiaozhiRoutes) {
-                XiaozhiBottomBar(route) { target ->
+                val isAdmin = state.settings.xiaozhiRole.equals("admin", ignoreCase = true) || state.settings.xiaozhiUsername.equals("admin", ignoreCase = true)
+                XiaozhiBottomBar(route, isAdmin = isAdmin) { target ->
                     navController.navigate(target) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                         launchSingleTop = true
@@ -228,10 +229,21 @@ fun AppNavHost(viewModel: MainViewModel) {
             // ── Xiaozhi AI Routes ──
             composable(ROUTE_XIAOZHI_AUTH) {
                 XiaozhiAuthScreen(
+                    operatingMode = "XIAOZHI_AI",
+                    isLoggedIn = !state.settings.xiaozhiAccessToken.isNullOrBlank(),
+                    currentUsername = state.settings.xiaozhiUsername ?: state.email,
                     onLogin = viewModel::xiaozhiLogin,
                     onRegister = viewModel::xiaozhiRegister,
                     onGoogleAuth = { isRegister, onComplete ->
                         launchXiaozhiGoogle(if (isRegister) "register" else "login", onComplete)
+                    },
+                    onGoogleWebAuth = { isRegister ->
+                        val action = if (isRegister) "register" else "login"
+                        val webUri = Uri.parse("https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile")
+                        val intent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
                     },
                     onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
                     onAuthSuccessAndConnected = {
@@ -241,14 +253,49 @@ fun AppNavHost(viewModel: MainViewModel) {
                     },
                     onSwitchToChronchi = {
                         viewModel.setOperatingMode("CHRONCHI_BLE")
-                        navController.navigate(MainDestination.Home.route) {
+                        val target = if (state.signedIn) {
+                            if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                        } else {
+                            ROUTE_LOGIN
+                        }
+                        navController.navigate(target) {
                             popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
+                        }
+                    },
+                    onSwitchToXiaozhi = null,
+                    onLogout = {
+                        if (activity != null) {
+                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                            GoogleSignIn.getClient(activity, options).signOut()
+                        }
+                        viewModel.performCompleteLogout()
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
             }
 
+            // Dashboard Xiaozhi AI: Wajib Login & Wajib Terkoneksi MCP
             composable(XiaozhiDestination.Dashboard.route) {
+                val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                val isMcpConnected = state.settings.xiaozhiMcpConnected
+
+                LaunchedEffect(hasXiaozhiToken, isMcpConnected) {
+                    if (!hasXiaozhiToken || !isMcpConnected) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(XiaozhiDestination.Dashboard.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                if (!hasXiaozhiToken || !isMcpConnected) {
+                    Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeoTokens.Emerald)
+                    }
+                    return@composable
+                }
+
                 val dashboardData by viewModel.xiaozhiDashboardData.collectAsState()
                 val isDashLoading by viewModel.xiaozhiDashboardLoading.collectAsState()
                 LaunchedEffect(Unit) {
@@ -286,7 +333,26 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
+            // Chat History: Wajib Login & Wajib Terkoneksi MCP
             composable(XiaozhiDestination.ChatHistory.route) {
+                val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                val isMcpConnected = state.settings.xiaozhiMcpConnected
+
+                LaunchedEffect(hasXiaozhiToken, isMcpConnected) {
+                    if (!hasXiaozhiToken || !isMcpConnected) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(XiaozhiDestination.ChatHistory.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                if (!hasXiaozhiToken || !isMcpConnected) {
+                    Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeoTokens.Emerald)
+                    }
+                    return@composable
+                }
+
                 val chatHistory by viewModel.xiaozhiChatHistory.collectAsState()
                 LaunchedEffect(Unit) {
                     viewModel.loadXiaozhiChatHistory()
@@ -299,7 +365,57 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
+            // User List (Admin): Wajib Login & Wajib Terkoneksi MCP
+            composable(XiaozhiDestination.UserList.route) {
+                val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                val isMcpConnected = state.settings.xiaozhiMcpConnected
+
+                LaunchedEffect(hasXiaozhiToken, isMcpConnected) {
+                    if (!hasXiaozhiToken || !isMcpConnected) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(XiaozhiDestination.UserList.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                if (!hasXiaozhiToken || !isMcpConnected) {
+                    Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeoTokens.Emerald)
+                    }
+                    return@composable
+                }
+
+                val adminUsers by viewModel.xiaozhiAdminUsers.collectAsState()
+                val isUsersLoading by viewModel.xiaozhiAdminUsersLoading.collectAsState()
+                LaunchedEffect(Unit) {
+                    viewModel.loadXiaozhiAdminUsers()
+                }
+                XiaozhiUserListScreen(
+                    users = adminUsers,
+                    isLoading = isUsersLoading,
+                    onRefresh = viewModel::loadXiaozhiAdminUsers
+                )
+            }
+
+            // Profile Xiaozhi: Wajib Login
             composable(XiaozhiDestination.Profile.route) {
+                val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+
+                LaunchedEffect(hasXiaozhiToken) {
+                    if (!hasXiaozhiToken) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(XiaozhiDestination.Profile.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                if (!hasXiaozhiToken) {
+                    Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeoTokens.Emerald)
+                    }
+                    return@composable
+                }
+
                 val isScanning by viewModel.xiaozhiScanningPersona.collectAsState()
                 LaunchedEffect(Unit) {
                     viewModel.loadXiaozhiProfile()
@@ -316,21 +432,26 @@ fun AppNavHost(viewModel: MainViewModel) {
                     },
                     onSwitchToChronchi = {
                         viewModel.setOperatingMode("CHRONCHI_BLE")
-                        navController.navigate(MainDestination.Home.route) {
+                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                        navController.navigate(target) {
                             popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                         }
                     },
                     onLogout = {
-                        viewModel.xiaozhiLogout()
+                        if (activity != null) {
+                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                            GoogleSignIn.getClient(activity, options).signOut()
+                        }
+                        viewModel.performCompleteLogout()
                         navController.navigate(ROUTE_XIAOZHI_AUTH) {
-                            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     },
                     onRefresh = { viewModel.loadXiaozhiProfile() }
                 )
             }
 
-            // ── Chronchi BLE Routes ──
+            // ── Chronchi BLE Routes (Unifikasi Akun dengan Xiaozhi AI) ──
             composable(ROUTE_LOGIN) {
                 LaunchedEffect(state.signedIn) {
                     if (state.signedIn) {
@@ -338,30 +459,77 @@ fun AppNavHost(viewModel: MainViewModel) {
                         navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
                     }
                 }
-                LoginScreen(
-                    busy = state.busy,
-                    firebaseReady = state.firebaseReady,
-                    message = state.message,
-                    onLogin = viewModel::login,
-                    onGoogle = beginGoogleSignIn,
-                    onRegister = { viewModel.clearMessage(); navController.navigate(ROUTE_REGISTER) }
+                XiaozhiAuthScreen(
+                    operatingMode = "CHRONCHI_BLE",
+                    isLoggedIn = state.signedIn,
+                    currentUsername = state.email ?: state.settings.xiaozhiUsername,
+                    onLogin = { u, p, cb ->
+                        viewModel.xiaozhiLogin(u, p) { success, msg ->
+                            cb(success, msg)
+                            if (success) {
+                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                            }
+                        }
+                    },
+                    onRegister = { u, p, cb ->
+                        viewModel.xiaozhiRegister(u, p) { success, msg ->
+                            cb(success, msg)
+                            if (success) {
+                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                            }
+                        }
+                    },
+                    onGoogleAuth = { isRegister, cb ->
+                        launchXiaozhiGoogle(if (isRegister) "register" else "login") { success, msg ->
+                            cb(success, msg)
+                            if (success) {
+                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                            }
+                        }
+                    },
+                    onGoogleWebAuth = { isRegister ->
+                        val action = if (isRegister) "register" else "login"
+                        val webUri = Uri.parse("https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile")
+                        val intent = Intent(Intent.ACTION_VIEW, webUri).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    },
+                    onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
+                    onAuthSuccessAndConnected = {
+                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                    },
+                    onSwitchToChronchi = { },
+                    onSwitchToXiaozhi = {
+                        viewModel.setOperatingMode("XIAOZHI_AI")
+                        val hasToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                        val mcpOk = state.settings.xiaozhiMcpConnected
+                        val target = if (hasToken && mcpOk) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
+                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                    },
+                    onLogout = {
+                        if (activity != null) {
+                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                            GoogleSignIn.getClient(activity, options).signOut()
+                        }
+                        viewModel.performCompleteLogout()
+                        navController.navigate(ROUTE_LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
 
             composable(ROUTE_REGISTER) {
-                LaunchedEffect(state.signedIn) {
-                    if (state.signedIn) {
-                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                LaunchedEffect(Unit) {
+                    navController.navigate(ROUTE_LOGIN) {
+                        popUpTo(ROUTE_REGISTER) { inclusive = true }
                     }
                 }
-                RegisterScreen(
-                    busy = state.busy,
-                    message = state.message,
-                    onRegister = viewModel::register,
-                    onGoogle = beginGoogleSignIn,
-                    onBack = { navController.popBackStack() }
-                )
             }
 
             composable(ROUTE_PERMISSIONS) {
@@ -414,9 +582,13 @@ fun AppNavHost(viewModel: MainViewModel) {
                     onCheckFirmware = viewModel::checkFirmwareUpdate,
                     onInstallFirmware = viewModel::installFirmwareUpdate,
                     onLogout = {
-                        viewModel.logout()
+                        if (activity != null) {
+                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                            GoogleSignIn.getClient(activity, options).signOut()
+                        }
+                        viewModel.performCompleteLogout()
                         navController.navigate(ROUTE_LOGIN) {
-                            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     },
                     onSwitchToXiaozhi = {

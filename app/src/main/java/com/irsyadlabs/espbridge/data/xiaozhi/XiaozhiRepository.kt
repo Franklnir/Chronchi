@@ -192,6 +192,33 @@ class XiaozhiRepository(
         return apiClient.setRelay(token, channel, state)
     }
 
+    
+    suspend fun saveDirectSession(
+        token: String,
+        refreshToken: String,
+        username: String,
+        userId: Int,
+        role: String
+    ): XiaozhiMcpStatus {
+        val mcp = apiClient.getMcpStatus(token)
+        val isMcpConnected = mcp.connected || role.equals("admin", ignoreCase = true)
+        settingsRepository.saveXiaozhiSession(
+            token = token,
+            refreshToken = refreshToken,
+            username = username,
+            userId = userId,
+            role = role,
+            mcpConnected = isMcpConnected,
+            preview = mcp.tokenPreview
+        )
+        return mcp
+    }
+
+    suspend fun getAdminUsers(): Result<List<XiaozhiAdminUserItem>> {
+        val token = currentToken() ?: return Result.failure(Exception("Tidak terotentikasi."))
+        return apiClient.getAdminUsers(token)
+    }
+
     suspend fun logout() {
         settingsRepository.clearXiaozhiSession()
     }

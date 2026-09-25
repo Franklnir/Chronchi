@@ -182,6 +182,40 @@ fun LoginScreen(
                             if (validationMessage == null) onLogin(email, password)
                         }
                     )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    OutlinedButton(
+                        onClick = onGoogle,
+                        enabled = !busy,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(UiTokens.SmallRadius),
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, SketchBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = SketchBorder
+                        )
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "G",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                color = Color(0xFF4285F4)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "Sign in with Google",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
                 }
             }
             

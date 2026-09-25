@@ -1,0 +1,67 @@
+name: Build & Release ESPBridge APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK for Distribution
+        run: |
+          mkdir -p output_apk
+          cp app/build/outputs/apk/debug/app-debug.apk output_apk/espbridge-xiaozhi-latest.apk
+
+      - name: Upload APK to GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: espbridge-android-apk
+          path: output_apk/espbridge-xiaozhi-latest.apk
+          retention-days: 30
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.0"
+          name: "ESPBridge & Xiaozhi AI Mobile v1.0.0"
+          draft: false
+          prerelease: false
+          body: |
+            ## 📱 Rilis Aplikasi Mobile ESPBridge & Xiaozhi AI
+            
+            Versi terbaru aplikasi Android untuk ekosistem Xiaozhi AI & ESPBridge:
+            - **Google Sign-In Terpadu**: Login aman menggunakan akun Google atau username Xiaozhi.
+            - **Mode Chronchi BLE**: Hubungkan perangkat ESP32 via Bluetooth Low Energy secara instan.
+            - **Mode Xiaozhi AI & MCP Gateway**: Akses 35+ tools cerdas, Smart Home, dan manajemen materi.
+            - **Real Logout**: Proteksi keamanan sesi dan pembersihan cache tumpukan navigasi total.
+            - **In-App Web Portal Wi-Fi (192.168.4.1)**: Konfigurasi Wi-Fi offline langsung di dalam aplikasi.
+            
+            Unduh file APK di bawah ini dan instal langsung di perangkat Android Anda.
+          files: output_apk/espbridge-xiaozhi-latest.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

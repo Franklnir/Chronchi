@@ -1,5 +1,6 @@
 package com.irsyadlabs.espbridge
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,12 +16,26 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleDeepLink(intent)
         enableEdgeToEdge()
         setContent {
             val state by viewModel.uiState.collectAsState()
             XichiTheme(theme = state.settings.appTheme) {
                 AppNavHost(viewModel)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme == "espbridge" && uri.host == "oauth") {
+            viewModel.handleOAuthCallback(uri)
         }
     }
 }

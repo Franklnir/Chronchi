@@ -1,6 +1,8 @@
 package com.irsyadlabs.espbridge
 
 import android.app.Application
+import android.net.Uri
+import com.irsyadlabs.espbridge.data.xiaozhi.XiaozhiAdminUserItem
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -87,6 +89,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _xiaozhiScanningPersona = MutableStateFlow(false)
     val xiaozhiScanningPersona: StateFlow<Boolean> = _xiaozhiScanningPersona
 
+    private val _xiaozhiAdminUsers = MutableStateFlow<List<XiaozhiAdminUserItem>>(emptyList())
+    val xiaozhiAdminUsers: StateFlow<List<XiaozhiAdminUserItem>> = _xiaozhiAdminUsers
+
+    private val _xiaozhiAdminUsersLoading = MutableStateFlow(false)
+    val xiaozhiAdminUsersLoading: StateFlow<Boolean> = _xiaozhiAdminUsersLoading
+
     val uiState: StateFlow<MainUiState> = combine(
         combine(
             combine(
@@ -145,8 +153,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             bleDevices = part1[3] as List<DiscoveredBleDevice>,
             bleRssi = part1[4] as Int?,
             bleProtocolStatus = part1[5] as BleProtocolStatus,
-            signedIn = (part1[6] as Boolean) || settings.demoLoggedIn,
-            email = (part1[7] as String?) ?: settings.demoEmail,
+            signedIn = (part1[6] as Boolean) || settings.demoLoggedIn || !settings.xiaozhiAccessToken.isNullOrBlank(),
+            email = (part1[7] as String?) ?: settings.demoEmail ?: settings.xiaozhiUsername ?: (part3[0] as XiaozhiProfileData?)?.user?.username,
             credentials = part1[8] as DeviceCredentialsManager.Credentials?,
             busy = part2[0] as Boolean,
             message = part2[1] as String?,
@@ -168,6 +176,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             credentials.value = c.credentials.getOrCreate()
             c.systemCollector.refresh()
             val initialSettings = c.settings.settings.first()
+            if (!initialSettings.xiaozhiAccessToken.isNullOrBlank()) {
+                signedIn.value = true
+                if (!initialSettings.xiaozhiUsername.isNullOrBlank()) {
+                    email.value = initialSettings.xiaozhiUsername
+                }
+            }
             if (initialSettings.weatherTemperature != null) {
                 c.stateHub.updateWeather(
                     WeatherState(
@@ -210,9 +224,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val res = c.xiaozhi.login(username, password)
             if (res.success && res.accessToken != null) {
+                signedIn.value = true
+                email.value = username
                 val mcp = c.xiaozhi.getMcpStatus()
                 xiaozhiMcpStatus.value = mcp
-                if (mcp.connected) {
+                val isAdmin = res.user?.role?.equals("admin", ignoreCase = true) == true
+                if (mcp.connected || isAdmin) {
                     onResult(true, null)
                     refreshXiaozhiDashboard()
                 } else {
@@ -233,6 +250,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val res = c.xiaozhi.register(username, password)
             if (res.success && res.accessToken != null) {
+                signedIn.value = true
+                email.value = username
                 val mcp = c.xiaozhi.getMcpStatus()
                 xiaozhiMcpStatus.value = mcp
                 loadXiaozhiProfile()
@@ -262,10 +281,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val res = c.xiaozhi.googleAuth(idToken, action)
             if (res.success) {
                 if (action != "link") {
+                    signedIn.value = true
+                    val userEmail = res.user?.googleEmail ?: res.user?.username ?: "Google User"
+                    email.value = userEmail
                     val mcp = c.xiaozhi.getMcpStatus()
                     xiaozhiMcpStatus.value = mcp
                     loadXiaozhiProfile()
-                    if (mcp.connected) {
+                    val isAdmin = res.user?.role?.equals("admin", ignoreCase = true) == true
+                    if (mcp.connected || isAdmin) {
                         refreshXiaozhiDashboard()
                         onResult(true, null)
                     } else {
@@ -498,42 +521,126 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun xiaozhiLogout() = viewModelScope.launch {
-        c.xiaozhi.logout()
+
+    fun loadXiaozhiAdminUsers() = viewModelScope.launch {
+        _xiaozhiAdminUsersLoading.value = true
+        try {
+            val res = c.xiaozhi.getAdminUsers()
+            res.onSuccess { users ->
+                _xiaozhiAdminUsers.value = users
+            }.onFailure { err ->
+                showMessage(err.localizedMessage ?: "Gagal memuat daftar pengguna.")
+            }
+        } catch (e: Exception) {
+            showMessage("Error memuat user: ${e.localizedMessage}")
+        } finally {
+            _xiaozhiAdminUsersLoading.value = false
+        }
     }
 
-        // Existing Chronchi BLE / Auth Methods
-    fun login(emailValue: String, password: String) = viewModelScope.launch {
-        busy.value = true
-        message.value = null
-        try {
-            when (val result = c.auth.login(emailValue.trim(), password)) {
-                is AuthResult.Success -> {
-                    signedIn.value = true
-                    email.value = result.email
-                    registerCloudDeviceInBackground()
-                }
-                is AuthResult.Error -> message.value = result.message
+    fun handleOAuthCallback(uri: Uri) = viewModelScope.launch {
+        val error = uri.getQueryParameter("error")
+        if (!error.isNullOrBlank()) {
+            showMessage("Autentikasi Google: $error")
+            return@launch
+        }
+        val action = uri.getQueryParameter("action")
+        if (action == "link") {
+            val msg = uri.getQueryParameter("msg") ?: "Akun Google berhasil ditautkan!"
+            loadXiaozhiProfile()
+            showMessage(msg)
+            return@launch
+        }
+        val accessToken = uri.getQueryParameter("access_token")
+        val refreshToken = uri.getQueryParameter("refresh_token") ?: ""
+        val username = uri.getQueryParameter("username") ?: ""
+        val role = uri.getQueryParameter("role") ?: "user"
+        val userId = uri.getQueryParameter("user_id")?.toIntOrNull() ?: 1
+
+        if (!accessToken.isNullOrBlank()) {
+            busy.value = true
+            try {
+                setOperatingMode("XIAOZHI_AI")
+                val mcp = c.xiaozhi.saveDirectSession(accessToken, refreshToken, username, userId, role)
+                signedIn.value = true
+                email.value = username
+                xiaozhiMcpStatus.value = mcp
+                loadXiaozhiProfile()
+                refreshXiaozhiDashboard()
+                showMessage("Selamat datang di Xichi, @$username!")
+            } catch (e: Exception) {
+                showMessage("Gagal memproses login Google: ${e.localizedMessage}")
+            } finally {
+                busy.value = false
             }
+        }
+    }
+
+    fun performCompleteLogout(onComplete: (() -> Unit)? = null) = viewModelScope.launch {
+        busy.value = true
+        try {
+            // 1. Send clear config to BLE if connected, then disconnect
+            if (c.ble.isConnected()) {
+                runCatching { c.router.sendClearConfig() }
+                kotlinx.coroutines.delay(300)
+                runCatching { c.ble.disconnect() }
+            }
+            // 2. Stop device connection foreground service
+            runCatching {
+                getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
+            }
+            // 3. Clear Xiaozhi session from repository & DataStore
+            runCatching { c.xiaozhi.logout() }
+            runCatching {
+                c.settings.clearXiaozhiSession()
+                c.settings.clearLocalSession()
+            }
+            // 4. Sign out Firebase & local auth
+            runCatching { c.auth.logout() }
+            // 5. Reset all in-memory flows
+            signedIn.value = false
+            email.value = null
+            xiaozhiProfile.value = null
+            xiaozhiChatMessages.value = emptyList()
+            _xiaozhiAdminUsers.value = emptyList()
+            _xiaozhiDashboardData.value = XiaozhiDashboardData()
+            _xiaozhiChatHistory.value = XiaozhiChatHistoryData()
+            xiaozhiMcpStatus.value = XiaozhiMcpStatus(connected = false, statusText = "Belum login")
+            message.value = "Anda telah berhasil logout sepenuhnya."
+            onComplete?.invoke()
+        } catch (e: Exception) {
+            message.value = "Logout error: ${e.localizedMessage}"
+            onComplete?.invoke()
         } finally {
             busy.value = false
         }
     }
 
-    fun register(emailValue: String, password: String) = viewModelScope.launch {
-        busy.value = true
-        message.value = null
-        try {
-            when (val result = c.auth.register(emailValue.trim(), password)) {
-                is AuthResult.Success -> {
-                    signedIn.value = true
-                    email.value = result.email
-                    registerCloudDeviceInBackground()
-                }
-                is AuthResult.Error -> message.value = result.message
+    fun logout() = performCompleteLogout()
+    fun xiaozhiLogout() = performCompleteLogout()
+
+    // Unified Chronchi BLE / Xiaozhi Auth Methods
+    fun login(emailValue: String, password: String) = viewModelScope.launch {
+        xiaozhiLogin(emailValue.trim(), password) { success, msg ->
+            if (success) {
+                signedIn.value = true
+                email.value = emailValue.trim()
+                registerCloudDeviceInBackground()
+            } else {
+                message.value = msg ?: "Login gagal. Periksa username dan password."
             }
-        } finally {
-            busy.value = false
+        }
+    }
+
+    fun register(emailValue: String, password: String) = viewModelScope.launch {
+        xiaozhiRegister(emailValue.trim(), password) { success, msg ->
+            if (success) {
+                signedIn.value = true
+                email.value = emailValue.trim()
+                registerCloudDeviceInBackground()
+            } else {
+                message.value = msg ?: "Registrasi gagal."
+            }
         }
     }
 
@@ -567,18 +674,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } finally {
             busy.value = false
         }
-    }
-
-    fun logout() = viewModelScope.launch {
-        if (c.ble.isConnected()) {
-            c.router.sendClearConfig()
-            kotlinx.coroutines.delay(500)
-        }
-        c.auth.logout()
-        signedIn.value = false
-        email.value = null
-        c.ble.disconnect()
-        getApplication<Application>().stopService(Intent(getApplication(), DeviceConnectionService::class.java))
     }
 
     fun forgetFirebase() = viewModelScope.launch {

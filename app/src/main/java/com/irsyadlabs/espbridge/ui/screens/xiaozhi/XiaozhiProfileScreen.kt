@@ -127,6 +127,25 @@ fun XiaozhiProfileScreen(
                             )
                         }
                     }
+
+                    if (!user.deviceMac.isNullOrBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeveloperBoard,
+                                contentDescription = null,
+                                tint = NeoTokens.Emerald,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "MAC: ${user.deviceMac}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeoTokens.Dark
+                            )
+                        }
+                    }
                 }
             }
         }

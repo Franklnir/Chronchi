@@ -153,6 +153,73 @@ fun XiaozhiDashboardScreen(
             )
         }
 
+        // ── Hardware Board Status (MAC ID) ──
+        Spacer(Modifier.height(14.dp))
+        val boardMac = dashboardData.user.deviceMac
+        NeoCard(
+            modifier = Modifier.fillMaxWidth(),
+            backgroundColor = if (!boardMac.isNullOrBlank()) NeoTokens.MintLight else NeoTokens.White,
+            borderColor = NeoTokens.Black,
+            contentPadding = PaddingValues(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(if (!boardMac.isNullOrBlank()) NeoTokens.Emerald else NeoTokens.Gray, RoundedCornerShape(10.dp))
+                        .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeveloperBoard,
+                        contentDescription = "Board ESP32",
+                        tint = if (!boardMac.isNullOrBlank()) NeoTokens.White else NeoTokens.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "HARDWARE BOARD ESP32",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeoTokens.Muted
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        if (!boardMac.isNullOrBlank()) {
+                            NeoBadge(
+                                text = "TERHUBUNG",
+                                backgroundColor = NeoTokens.Emerald,
+                                textColor = NeoTokens.White
+                            )
+                        } else {
+                            NeoBadge(
+                                text = "MENUNGGU BOARD",
+                                backgroundColor = NeoTokens.Yellow,
+                                textColor = NeoTokens.Black
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (!boardMac.isNullOrBlank()) "MAC ID: $boardMac" else "Belum Ada Board Terdeteksi",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = NeoTokens.Black
+                    )
+                    Text(
+                        text = if (!boardMac.isNullOrBlank()) "Board ESP32 aktif & terdaftar di akun Anda." else "Nyalakan board ESP32 Anda agar terhubung secara otomatis.",
+                        fontSize = 12.sp,
+                        color = NeoTokens.Dark
+                    )
+                }
+            }
+        }
+
         // ── 2. MCP Disconnected Warning Banner ──
         if (!dashboardData.mcpStatus.connected && dashboardData.user.role != "admin") {
             Spacer(Modifier.height(16.dp))

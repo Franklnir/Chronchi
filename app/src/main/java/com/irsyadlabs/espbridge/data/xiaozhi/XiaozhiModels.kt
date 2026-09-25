@@ -8,7 +8,8 @@ data class XiaozhiUser(
     val createdAt: String = "",
     val googleId: String? = null,
     val googleEmail: String? = null,
-    val registeredWithGoogle: Boolean = false
+    val registeredWithGoogle: Boolean = false,
+    val deviceMac: String? = null
 )
 
 data class XiaozhiAuthResult(
@@ -153,4 +154,24 @@ data class SmartHomeRelay(
     val name: String,
     val state: Boolean,
     val isVirtual: Boolean = false
+)
+
+
+// Admin Models
+data class XiaozhiAdminMcpStatus(
+    val hasToken: Boolean = false,
+    val connected: Boolean = false,
+    val message: String = ""
+)
+
+data class XiaozhiAdminUserItem(
+    val id: Int = 0,
+    val username: String = "",
+    val role: String = "user",
+    val createdAt: String = "",
+    val deviceMac: String = "",
+    val deviceName: String = "",
+    val isPlaying: Boolean = false,
+    val currentTrack: String = "",
+    val mcpStatus: XiaozhiAdminMcpStatus = XiaozhiAdminMcpStatus()
 )

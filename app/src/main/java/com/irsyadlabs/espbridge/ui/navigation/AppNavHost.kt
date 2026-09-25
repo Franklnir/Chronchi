@@ -81,7 +81,7 @@ fun AppNavHost(viewModel: MainViewModel) {
     }
 
     // Google Sign-In Client ID untuk Xiaozhi AI & Backend Terpadu
-    val xiaozhiWebClientId = "3260223826-k8qrmthkeegt36pvnbac3oqurnmcmnvq.apps.googleusercontent.com"
+    val xiaozhiWebClientId = "1073158241145-68rt5j4ekpji59f7ot1k91jq3qquv5l4.apps.googleusercontent.com"
     var pendingXiaozhiGoogleAction by remember { mutableStateOf("login") }
     var pendingXiaozhiGoogleCallback by remember { mutableStateOf<((Boolean, String?) -> Unit)?>(null) }
     var inAppGoogleAuthUrl by remember { mutableStateOf<String?>(null) }

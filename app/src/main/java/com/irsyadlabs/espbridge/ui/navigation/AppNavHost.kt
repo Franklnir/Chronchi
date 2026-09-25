@@ -39,6 +39,8 @@ import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiChatHistoryScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiDashboardScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiProfileScreen
 import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiUserListScreen
+import com.irsyadlabs.espbridge.ui.screens.xiaozhi.XiaozhiWebFlasherScreen
+import com.irsyadlabs.espbridge.ui.components.XiaozhiMcpBlockingOverlay
 import com.irsyadlabs.espbridge.ui.theme.NeoTokens
 import com.irsyadlabs.espbridge.ui.theme.PaperWhite
 
@@ -194,8 +196,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                         mode.isBlank() -> ROUTE_MODE_SELECT
                         mode == "XIAOZHI_AI" -> {
                             val hasToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
-                            val mcpOk = state.settings.xiaozhiMcpConnected
-                            if (hasToken && mcpOk) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
+                            if (hasToken) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
                         }
                         !state.signedIn -> ROUTE_XIAOZHI_AUTH
                         !state.settings.onboardingComplete -> ROUTE_PERMISSIONS
@@ -219,8 +220,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                     onSelectXiaozhi = {
                         viewModel.setOperatingMode("XIAOZHI_AI")
                         val hasToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
-                        val mcpOk = state.settings.xiaozhiMcpConnected
-                        val target = if (hasToken && mcpOk) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
+                        val target = if (hasToken) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
                         navController.navigate(target) { popUpTo(ROUTE_MODE_SELECT) { inclusive = true } }
                     }
                 )
@@ -343,23 +343,56 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
-            // Chat History: Wajib Login & Wajib Terkoneksi MCP
+            // Chat History: Wajib Login (Jika MCP belum terhubung -> Tampilkan Overlay Kunci MCP)
             composable(XiaozhiDestination.ChatHistory.route) {
                 val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
                 val isMcpConnected = state.settings.xiaozhiMcpConnected
 
-                LaunchedEffect(hasXiaozhiToken, isMcpConnected) {
-                    if (!hasXiaozhiToken || !isMcpConnected) {
+                LaunchedEffect(hasXiaozhiToken) {
+                    if (!hasXiaozhiToken) {
                         navController.navigate(ROUTE_XIAOZHI_AUTH) {
                             popUpTo(XiaozhiDestination.ChatHistory.route) { inclusive = true }
                         }
                     }
                 }
 
-                if (!hasXiaozhiToken || !isMcpConnected) {
+                if (!hasXiaozhiToken) {
                     Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NeoTokens.Emerald)
                     }
+                    return@composable
+                }
+
+                if (!isMcpConnected) {
+                    XiaozhiMcpBlockingOverlay(
+                        onSaveAndConnectMcp = { token ->
+                            viewModel.xiaozhiSaveAndConnectMcp(token, {}, {})
+                        },
+                        onNavigateToFlasher = {
+                            navController.navigate(XiaozhiDestination.Flasher.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onSwitchToChronchi = {
+                            viewModel.setOperatingMode("CHRONCHI_BLE")
+                            val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            }
+                        },
+                        onLogout = {
+                            if (activity != null) {
+                                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                                GoogleSignIn.getClient(activity, options).signOut()
+                            }
+                            viewModel.performCompleteLogout()
+                            navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
                     return@composable
                 }
 
@@ -375,23 +408,56 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
-            // User List (Admin): Wajib Login & Wajib Terkoneksi MCP
+            // User List (Admin): Wajib Login (Jika MCP belum terhubung -> Tampilkan Overlay Kunci MCP)
             composable(XiaozhiDestination.UserList.route) {
                 val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
                 val isMcpConnected = state.settings.xiaozhiMcpConnected
 
-                LaunchedEffect(hasXiaozhiToken, isMcpConnected) {
-                    if (!hasXiaozhiToken || !isMcpConnected) {
+                LaunchedEffect(hasXiaozhiToken) {
+                    if (!hasXiaozhiToken) {
                         navController.navigate(ROUTE_XIAOZHI_AUTH) {
                             popUpTo(XiaozhiDestination.UserList.route) { inclusive = true }
                         }
                     }
                 }
 
-                if (!hasXiaozhiToken || !isMcpConnected) {
+                if (!hasXiaozhiToken) {
                     Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NeoTokens.Emerald)
                     }
+                    return@composable
+                }
+
+                if (!isMcpConnected) {
+                    XiaozhiMcpBlockingOverlay(
+                        onSaveAndConnectMcp = { token ->
+                            viewModel.xiaozhiSaveAndConnectMcp(token, {}, {})
+                        },
+                        onNavigateToFlasher = {
+                            navController.navigate(XiaozhiDestination.Flasher.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onSwitchToChronchi = {
+                            viewModel.setOperatingMode("CHRONCHI_BLE")
+                            val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            }
+                        },
+                        onLogout = {
+                            if (activity != null) {
+                                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                                GoogleSignIn.getClient(activity, options).signOut()
+                            }
+                            viewModel.performCompleteLogout()
+                            navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
                     return@composable
                 }
 
@@ -407,9 +473,10 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
-            // Profile Xiaozhi: Wajib Login
+            // Profile Xiaozhi: Wajib Login (Jika MCP belum terhubung -> Tampilkan Overlay Kunci MCP)
             composable(XiaozhiDestination.Profile.route) {
                 val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                val isMcpConnected = state.settings.xiaozhiMcpConnected
 
                 LaunchedEffect(hasXiaozhiToken) {
                     if (!hasXiaozhiToken) {
@@ -423,6 +490,39 @@ fun AppNavHost(viewModel: MainViewModel) {
                     Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = NeoTokens.Emerald)
                     }
+                    return@composable
+                }
+
+                if (!isMcpConnected) {
+                    XiaozhiMcpBlockingOverlay(
+                        onSaveAndConnectMcp = { token ->
+                            viewModel.xiaozhiSaveAndConnectMcp(token, {}, {})
+                        },
+                        onNavigateToFlasher = {
+                            navController.navigate(XiaozhiDestination.Flasher.route) {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onSwitchToChronchi = {
+                            viewModel.setOperatingMode("CHRONCHI_BLE")
+                            val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                            navController.navigate(target) {
+                                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            }
+                        },
+                        onLogout = {
+                            if (activity != null) {
+                                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                                GoogleSignIn.getClient(activity, options).signOut()
+                            }
+                            viewModel.performCompleteLogout()
+                            navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
                     return@composable
                 }
 

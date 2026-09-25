@@ -33,6 +33,7 @@ val mainDestinations = listOf(
 sealed class XiaozhiDestination(val route: String, val label: String) {
     data object Dashboard : XiaozhiDestination("xiaozhi_dashboard", "Dashboard")
     data object ChatHistory : XiaozhiDestination("xiaozhi_chat", "Riwayat")
+    data object Flasher : XiaozhiDestination("xiaozhi_flasher", "Flasher")
     data object UserList : XiaozhiDestination("xiaozhi_users", "Daftar User")
     data object Profile : XiaozhiDestination("xiaozhi_profile", "Profil")
 }
@@ -40,6 +41,7 @@ sealed class XiaozhiDestination(val route: String, val label: String) {
 val xiaozhiDestinations = listOf(
     XiaozhiDestination.Dashboard,
     XiaozhiDestination.ChatHistory,
+    XiaozhiDestination.Flasher,
     XiaozhiDestination.UserList,
     XiaozhiDestination.Profile
 )
@@ -83,6 +85,7 @@ fun XiaozhiBottomBar(
             listOf(
                 XiaozhiDestination.Dashboard,
                 XiaozhiDestination.ChatHistory,
+                XiaozhiDestination.Flasher,
                 XiaozhiDestination.UserList,
                 XiaozhiDestination.Profile
             )
@@ -90,6 +93,7 @@ fun XiaozhiBottomBar(
             listOf(
                 XiaozhiDestination.Dashboard,
                 XiaozhiDestination.ChatHistory,
+                XiaozhiDestination.Flasher,
                 XiaozhiDestination.Profile
             )
         }
@@ -112,8 +116,10 @@ fun XiaozhiBottomBar(
                 val icon = when (item) {
                     XiaozhiDestination.Dashboard -> Icons.Rounded.Dashboard
                     XiaozhiDestination.ChatHistory -> Icons.Rounded.Forum
+                    XiaozhiDestination.Flasher -> Icons.Rounded.Memory
                     XiaozhiDestination.UserList -> Icons.Rounded.People
                     XiaozhiDestination.Profile -> Icons.Rounded.Person
+                    else -> Icons.Rounded.Circle
                 }
                 NavigationBarItem(
                     selected = selected,

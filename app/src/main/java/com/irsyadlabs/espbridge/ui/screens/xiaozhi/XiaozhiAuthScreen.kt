@@ -1055,7 +1055,7 @@ fun XiaozhiAuthScreen(
 
         // App Version Footer
         Text(
-            text = "Versi v1.4.1 (Build 8) • Chronchi & Xiaozhi AI",
+            text = "Versi v1.4.2 (Build 9) • Chronchi & Xiaozhi AI",
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
             color = NeoTokens.Muted,

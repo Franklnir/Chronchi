@@ -219,6 +219,11 @@ class XiaozhiRepository(
         return apiClient.getAdminUsers(token)
     }
 
+    suspend fun claimPresetCode(code: String): Result<String> {
+        val token = currentToken() ?: return Result.failure(Exception("Tidak terotentikasi."))
+        return apiClient.claimPresetCode(token, code)
+    }
+
     suspend fun logout() {
         settingsRepository.clearXiaozhiSession()
     }

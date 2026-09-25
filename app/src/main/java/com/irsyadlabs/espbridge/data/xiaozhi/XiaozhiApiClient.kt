@@ -514,6 +514,19 @@ class XiaozhiApiClient(
         }
     }
 
+    suspend fun claimPresetCode(token: String?, code: String): Result<String> = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("code", code).toString()
+        val (httpCode, response) = executeRequest("/api/v1/flasher/preset/claim", "POST", body, token)
+        if (httpCode in 200..299 && response != null) {
+            val json = JSONObject(response)
+            val msg = json.optString("message", "Kode lisensi berhasil diklaim.")
+            Result.success(msg)
+        } else {
+            val err = parseErrorMessage(response) ?: "Gagal mengklaim kode lisensi ($httpCode)"
+            Result.failure(Exception(err))
+        }
+    }
+
     private fun parseAuthResponse(code: Int, response: String?): XiaozhiAuthResult {
         if (code in 200..299 && response != null) {
             return try {

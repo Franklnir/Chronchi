@@ -642,6 +642,20 @@ private suspend fun syncFirebaseSession(username: String, pass: String) {
     }
 
     fun logout() = performCompleteLogout()
+    fun xiaozhiClaimPresetCode(code: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = c.xiaozhi.claimPresetCode(code)
+            result.onSuccess { msg ->
+                showMessage(msg)
+                onResult(true, msg)
+            }.onFailure { err ->
+                val msg = err.localizedMessage ?: "Gagal mengklaim kode lisensi."
+                showMessage(msg)
+                onResult(false, msg)
+            }
+        }
+    }
+
     fun xiaozhiLogout() = performCompleteLogout()
 
     // Unified Chronchi BLE / Xiaozhi Auth Methods

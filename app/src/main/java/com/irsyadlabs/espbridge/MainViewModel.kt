@@ -218,6 +218,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+private suspend fun syncFirebaseSession(username: String, pass: String) {
+        if (!c.auth.isFirebaseReady()) return
+        val fbEmail = if (username.contains('@')) username.trim() else "${username.lowercase().trim()}@xiaozhi.biz.id"
+        val loginRes = c.auth.login(fbEmail, pass)
+        if (loginRes is AuthResult.Error) {
+            c.auth.register(fbEmail, pass)
+        }
+    }
+
+    private suspend fun syncFirebaseFromOAuth(username: String, emailParam: String?) {
+        if (!c.auth.isFirebaseReady()) return
+        val fbEmail = if (!emailParam.isNullOrBlank() && emailParam.contains('@')) emailParam.trim() else "${username.lowercase().trim()}@xiaozhi.biz.id"
+        val defPass = "Xz@${username.take(10)}#2026!"
+        val loginRes = c.auth.login(fbEmail, defPass)
+        if (loginRes is AuthResult.Error) {
+            c.auth.register(fbEmail, defPass)
+        }
+    }
+
     // Xiaozhi AI Methods
     fun xiaozhiLogin(username: String, password: String, onResult: (Boolean, String?) -> Unit) = viewModelScope.launch {
         busy.value = true
@@ -226,6 +245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (res.success && res.accessToken != null) {
                 signedIn.value = true
                 email.value = username
+                syncFirebaseSession(username, password)
                 val mcp = c.xiaozhi.getMcpStatus()
                 xiaozhiMcpStatus.value = mcp
                 val isAdmin = res.user?.role?.equals("admin", ignoreCase = true) == true
@@ -252,6 +272,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (res.success && res.accessToken != null) {
                 signedIn.value = true
                 email.value = username
+                syncFirebaseSession(username, password)
                 val mcp = c.xiaozhi.getMcpStatus()
                 xiaozhiMcpStatus.value = mcp
                 loadXiaozhiProfile()
@@ -284,6 +305,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     signedIn.value = true
                     val userEmail = res.user?.googleEmail ?: res.user?.username ?: "Google User"
                     email.value = userEmail
+                    if (c.auth.isFirebaseReady()) {
+                        c.auth.loginWithGoogleIdToken(idToken)
+                    }
                     val mcp = c.xiaozhi.getMcpStatus()
                     xiaozhiMcpStatus.value = mcp
                     loadXiaozhiProfile()
@@ -564,6 +588,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val mcp = c.xiaozhi.saveDirectSession(accessToken, refreshToken, username, userId, role)
                 signedIn.value = true
                 email.value = username
+                syncFirebaseFromOAuth(username, uri.getQueryParameter("email"))
                 xiaozhiMcpStatus.value = mcp
                 loadXiaozhiProfile()
                 refreshXiaozhiDashboard()

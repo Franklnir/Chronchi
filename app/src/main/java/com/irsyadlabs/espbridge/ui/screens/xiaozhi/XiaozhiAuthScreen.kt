@@ -104,12 +104,22 @@ fun XiaozhiAuthScreen(
     ) {
         Spacer(Modifier.height(32.dp))
 
-        // Top Brand Banner
-        NeoBadge(
-            text = if (isChronchiMode) "CHRONCHI BLE & XIAOZHI AI" else "XICHI AI INDONESIA",
-            backgroundColor = if (isChronchiMode) NeoTokens.Blue else NeoTokens.Emerald,
-            textColor = NeoTokens.White
-        )
+        // Top Brand Banner & Unified Badges
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NeoBadge(
+                text = if (isChronchiMode) "CHRONCHI BLE & XIAOZHI" else "XICHI AI INDONESIA",
+                backgroundColor = if (isChronchiMode) NeoTokens.Blue else NeoTokens.Emerald,
+                textColor = NeoTokens.White
+            )
+            NeoBadge(
+                text = "🔥 FIREBASE SYNC",
+                backgroundColor = NeoTokens.Yellow,
+                textColor = NeoTokens.Black
+            )
+        }
 
         Spacer(Modifier.height(14.dp))
 

@@ -197,7 +197,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                             val mcpOk = state.settings.xiaozhiMcpConnected
                             if (hasToken && mcpOk) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
                         }
-                        !state.signedIn -> ROUTE_LOGIN
+                        !state.signedIn -> ROUTE_XIAOZHI_AUTH
                         !state.settings.onboardingComplete -> ROUTE_PERMISSIONS
                         else -> MainDestination.Home.route
                     }
@@ -210,7 +210,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                     onSelectChronchi = {
                         viewModel.setOperatingMode("CHRONCHI_BLE")
                         val target = when {
-                            !state.signedIn -> ROUTE_LOGIN
+                            !state.signedIn -> ROUTE_XIAOZHI_AUTH
                             !state.settings.onboardingComplete -> ROUTE_PERMISSIONS
                             else -> MainDestination.Home.route
                         }
@@ -235,7 +235,19 @@ fun AppNavHost(viewModel: MainViewModel) {
                     onLogin = viewModel::xiaozhiLogin,
                     onRegister = viewModel::xiaozhiRegister,
                     onGoogleAuth = { isRegister, onComplete ->
-                        launchXiaozhiGoogle(if (isRegister) "register" else "login", onComplete)
+                        launchXiaozhiGoogle(if (isRegister) "register" else "login") { success, msg ->
+                            onComplete(success, msg)
+                            if (success) {
+                                val target = if (state.settings.operatingMode == "CHRONCHI_BLE") {
+                                    if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                                } else {
+                                    XiaozhiDestination.Dashboard.route
+                                }
+                                navController.navigate(target) {
+                                    popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
+                                }
+                            }
+                        }
                     },
                     onGoogleWebAuth = { isRegister ->
                         val action = if (isRegister) "register" else "login"
@@ -244,7 +256,12 @@ fun AppNavHost(viewModel: MainViewModel) {
                     },
                     onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
                     onAuthSuccessAndConnected = {
-                        navController.navigate(XiaozhiDestination.Dashboard.route) {
+                        val target = if (state.settings.operatingMode == "CHRONCHI_BLE") {
+                            if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
+                        } else {
+                            XiaozhiDestination.Dashboard.route
+                        }
+                        navController.navigate(target) {
                             popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
                         }
                     },
@@ -253,7 +270,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                         val target = if (state.signedIn) {
                             if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
                         } else {
-                            ROUTE_LOGIN
+                            ROUTE_XIAOZHI_AUTH
                         }
                         navController.navigate(target) {
                             popUpTo(ROUTE_XIAOZHI_AUTH) { inclusive = true }
@@ -448,79 +465,18 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
-            // ── Chronchi BLE Routes (Unifikasi Akun dengan Xiaozhi AI) ──
+            // ── Chronchi BLE Routes (Unifikasi Akun Terpadu Xiaozhi AI & Firebase) ──
             composable(ROUTE_LOGIN) {
-                LaunchedEffect(state.signedIn) {
-                    if (state.signedIn) {
-                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                LaunchedEffect(Unit) {
+                    navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                        popUpTo(ROUTE_LOGIN) { inclusive = true }
                     }
                 }
-                XiaozhiAuthScreen(
-                    operatingMode = "CHRONCHI_BLE",
-                    isLoggedIn = state.signedIn,
-                    currentUsername = state.email ?: state.settings.xiaozhiUsername,
-                    onLogin = { u, p, cb ->
-                        viewModel.xiaozhiLogin(u, p) { success, msg ->
-                            cb(success, msg)
-                            if (success) {
-                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
-                            }
-                        }
-                    },
-                    onRegister = { u, p, cb ->
-                        viewModel.xiaozhiRegister(u, p) { success, msg ->
-                            cb(success, msg)
-                            if (success) {
-                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
-                            }
-                        }
-                    },
-                    onGoogleAuth = { isRegister, cb ->
-                        launchXiaozhiGoogle(if (isRegister) "register" else "login") { success, msg ->
-                            cb(success, msg)
-                            if (success) {
-                                val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                                navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
-                            }
-                        }
-                    },
-                    onGoogleWebAuth = { isRegister ->
-                        val action = if (isRegister) "register" else "login"
-                        pendingXiaozhiGoogleAction = action
-                        inAppGoogleAuthUrl = "https://xiaozhiscig.biz.id/api/auth/google/login?intent=$action&source=mobile_app"
-                    },
-                    onSaveAndConnectMcp = viewModel::xiaozhiSaveAndConnectMcp,
-                    onAuthSuccessAndConnected = {
-                        val target = if (state.settings.onboardingComplete) MainDestination.Home.route else ROUTE_PERMISSIONS
-                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
-                    },
-                    onSwitchToChronchi = { },
-                    onSwitchToXiaozhi = {
-                        viewModel.setOperatingMode("XIAOZHI_AI")
-                        val hasToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
-                        val mcpOk = state.settings.xiaozhiMcpConnected
-                        val target = if (hasToken && mcpOk) XiaozhiDestination.Dashboard.route else ROUTE_XIAOZHI_AUTH
-                        navController.navigate(target) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
-                    },
-                    onLogout = {
-                        if (activity != null) {
-                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
-                            GoogleSignIn.getClient(activity, options).signOut()
-                        }
-                        viewModel.performCompleteLogout()
-                        navController.navigate(ROUTE_LOGIN) {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    }
-                )
             }
 
             composable(ROUTE_REGISTER) {
                 LaunchedEffect(Unit) {
-                    navController.navigate(ROUTE_LOGIN) {
+                    navController.navigate(ROUTE_XIAOZHI_AUTH) {
                         popUpTo(ROUTE_REGISTER) { inclusive = true }
                     }
                 }
@@ -581,7 +537,7 @@ fun AppNavHost(viewModel: MainViewModel) {
                             GoogleSignIn.getClient(activity, options).signOut()
                         }
                         viewModel.performCompleteLogout()
-                        navController.navigate(ROUTE_LOGIN) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
                             popUpTo(0) { inclusive = true }
                         }
                     },

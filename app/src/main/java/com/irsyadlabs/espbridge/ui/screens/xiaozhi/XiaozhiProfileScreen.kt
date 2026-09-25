@@ -462,6 +462,9 @@ fun XiaozhiProfileScreen(
         Spacer(Modifier.height(18.dp))
 
         // ── 3. Akun Google Integration ──
+        val isGoogleLinked = !user.googleId.isNullOrBlank() || !user.googleEmail.isNullOrBlank()
+        val isRegisteredViaGoogle = user.registeredWithGoogle
+
         NeoCard(
             modifier = Modifier.fillMaxWidth(),
             backgroundColor = NeoTokens.White,
@@ -476,46 +479,49 @@ fun XiaozhiProfileScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(Color(0xFFF1F5F9), RoundedCornerShape(10.dp))
-                                .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(10.dp)),
+                                .size(44.dp)
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                .border(1.5.dp, NeoTokens.Black, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("G", fontSize = 20.sp, fontWeight = FontWeight.Black, color = NeoTokens.Blue)
+                            Text("G", fontSize = 22.sp, fontWeight = FontWeight.Black, color = NeoTokens.Blue)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Akun Google",
+                                text = "Tautan Akun Google",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeoTokens.Black
                             )
                             Text(
-                                text = user.googleEmail ?: "Belum Tertaut",
-                                fontSize = 13.sp,
-                                color = NeoTokens.Muted
+                                text = if (isGoogleLinked) (user.googleEmail ?: "Akun Google Terhubung") else "Belum ditautkan ke Google",
+                                fontSize = 12.5.sp,
+                                fontWeight = if (isGoogleLinked) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isGoogleLinked) NeoTokens.Dark else NeoTokens.Muted
                             )
                         }
                     }
 
-                    if (user.googleId != null) {
-                        if (user.registeredWithGoogle) {
+                    if (isGoogleLinked) {
+                        if (isRegisteredViaGoogle) {
                             NeoBadge(
-                                text = "🔒 Tautan Permanen",
+                                text = "🔒 Akun Utama",
                                 backgroundColor = Color(0xFFFEF3C7),
                                 textColor = Color(0xFF92400E)
                             )
                         } else {
                             NeoBadge(
-                                text = "✓ Terhubung",
-                                backgroundColor = NeoTokens.MintLight
+                                text = "✓ Tertaut",
+                                backgroundColor = NeoTokens.MintLight,
+                                textColor = Color(0xFF065F46)
                             )
                         }
                     } else {
                         NeoBadge(
                             text = "Tidak Tertaut",
-                            backgroundColor = NeoTokens.Gray
+                            backgroundColor = NeoTokens.Gray,
+                            textColor = NeoTokens.Black
                         )
                     }
                 }
@@ -523,21 +529,21 @@ fun XiaozhiProfileScreen(
                 Spacer(Modifier.height(14.dp))
 
                 // Actions & Descriptions for Google Account
-                if (user.googleId != null) {
-                    if (user.registeredWithGoogle) {
+                if (isGoogleLinked) {
+                    if (isRegisteredViaGoogle) {
                         // Registered with Google: Permanent, cannot unlink
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFFEF3C7), RoundedCornerShape(8.dp))
-                                .border(1.5.dp, Color(0xFFD97706), RoundedCornerShape(8.dp))
+                                .background(Color(0xFFFEF3C7), RoundedCornerShape(10.dp))
+                                .border(1.5.dp, Color(0xFFD97706), RoundedCornerShape(10.dp))
                                 .padding(12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.Top) {
-                                Text("🔒", fontSize = 14.sp)
+                                Text("🔒", fontSize = 16.sp)
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "Akun ini didaftarkan menggunakan Google sehingga tautan Google bersifat permanen dan tidak dapat dilepas demi keamanan akun.",
+                                    text = "Akun ini didaftarkan langsung menggunakan Akun Google, sehingga tautan Google ini berfungsi sebagai metode masuk utama dan tidak dapat dilepaskan demi keamanan akun Anda.",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF92400E),
@@ -562,12 +568,16 @@ fun XiaozhiProfileScreen(
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                                 modifier = Modifier.height(38.dp)
                             ) {
-                                Text(
-                                    text = "Putuskan Tautan Google",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeoTokens.Coral
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.LinkOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "Putuskan Tautan Google",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeoTokens.Coral
+                                    )
+                                }
                             }
                         }
                     }

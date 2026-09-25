@@ -2,6 +2,7 @@ package com.irsyadlabs.espbridge.ui.screens.xiaozhi
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.graphics.Bitmap
 import android.provider.Settings
 import android.webkit.WebResourceError
@@ -495,7 +496,7 @@ fun XiaozhiAuthScreen(
 
             if (isWifiTab) {
                 // =========================================================================
-                // SUB-KASUS A: OFFLINE WI-FI WEB PORTAL (MIRIP PERSIS SEPERTI DI BROWSER)
+                // SUB-KASUS A: OFFLINE WI-FI WEB PORTAL (MODERN & TOUCH-OPTIMIZED)
                 // =========================================================================
                 NeoCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -504,42 +505,94 @@ fun XiaozhiAuthScreen(
                     contentPadding = PaddingValues(16.dp)
                 ) {
                     Column {
+                        // Header Badges
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             NeoBadge(
-                                text = "100% OFFLINE (HOTSPOT AP)",
+                                text = "100% OFFLINE (PORTAL AP)",
                                 backgroundColor = NeoTokens.Emerald,
                                 textColor = NeoTokens.White
                             )
-                            Text(
+                            NeoBadge(
                                 text = "192.168.4.1",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 13.sp,
-                                color = NeoTokens.Emerald
+                                backgroundColor = NeoTokens.MintLight,
+                                textColor = Color(0xFF065F46)
                             )
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(12.dp))
 
                         Text(
-                            text = "Konfigurasi Wi-Fi & Layar ESP32",
+                            text = "Konfigurasi Wi-Fi & ESP32",
                             fontWeight = FontWeight.Black,
-                            fontSize = 17.sp,
+                            fontSize = 18.sp,
                             color = NeoTokens.Black
                         )
 
+                        Spacer(Modifier.height(4.dp))
+
                         Text(
-                            text = "1. Hubungkan Wi-Fi HP Anda ke hotspot 'Xiaozhi-XXXX'\n2. Portal web bawaan ESP32 akan langsung muncul di bawah ini persis seperti di browser:",
+                            text = "Atur koneksi Wi-Fi perangkat keras ESP32 secara instan langsung dari ponsel Anda tanpa koneksi internet.",
                             fontSize = 12.5.sp,
-                            color = NeoTokens.Dark,
-                            lineHeight = 17.sp,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                            color = NeoTokens.Muted,
+                            lineHeight = 17.sp
                         )
 
-                        // Quick action buttons (Buka Pengaturan Wi-Fi HP & Reload)
+                        Spacer(Modifier.height(12.dp))
+
+                        // Step-by-Step Guidance Box
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
+                                .border(1.5.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Panduan Langkah Cepat:",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.5.sp,
+                                color = NeoTokens.Black
+                            )
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("1️⃣", fontSize = 12.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Nyalakan ESP32 hingga mode hotspot aktif (misal 'Xiaozhi-XXXX' atau 'ESP32-AP').",
+                                    fontSize = 12.sp,
+                                    color = NeoTokens.Dark,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("2️⃣", fontSize = 12.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Sambungkan Wi-Fi ponsel Anda ke hotspot ESP32 tersebut.",
+                                    fontSize = 12.sp,
+                                    color = NeoTokens.Dark,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.Top) {
+                                Text("3️⃣", fontSize = 12.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Jika ada notifikasi 'Wi-Fi tanpa internet', pilih 'Tetap Terhubung' dan matikan Data Seluler sementara.",
+                                    fontSize = 12.sp,
+                                    color = NeoTokens.Dark,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Quick Action Buttons
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -554,12 +607,12 @@ fun XiaozhiAuthScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
                                 modifier = Modifier.weight(1f).height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Rounded.Wifi, null, tint = NeoTokens.Black, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Sambungkan Wi-Fi HP", color = NeoTokens.Black, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
+                                    Text("Setelan Wi-Fi HP", color = NeoTokens.Black, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
                                 }
                             }
 
@@ -573,33 +626,55 @@ fun XiaozhiAuthScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
                                 modifier = Modifier.weight(1f).height(42.dp),
-                                contentPadding = PaddingValues(horizontal = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 6.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Rounded.Refresh, null, tint = NeoTokens.White, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Muat Ulang Halaman", color = NeoTokens.White, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
+                                    Text("Muat Ulang", color = NeoTokens.White, fontWeight = FontWeight.Black, fontSize = 11.5.sp)
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    try {
+                                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("http://192.168.4.1/")).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        }
+                                        context.startActivity(browserIntent)
+                                    } catch (e: Exception) {}
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.White),
+                                shape = RoundedCornerShape(8.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
+                                modifier = Modifier.weight(1f).height(42.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.OpenInNew, null, tint = NeoTokens.Black, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Di Browser", color = NeoTokens.Black, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                 }
                             }
                         }
 
                         Spacer(Modifier.height(14.dp))
 
-                        // Modern Browser Frame (Meniru Tampilan Browser Chrome/Safari)
+                        // Modern Browser Mockup Frame
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(560.dp)
-                                .background(NeoTokens.White, RoundedCornerShape(12.dp))
-                                .border(2.dp, NeoTokens.Black, RoundedCornerShape(12.dp))
+                                .height(620.dp)
+                                .background(NeoTokens.White, RoundedCornerShape(14.dp))
+                                .border(2.dp, NeoTokens.Black, RoundedCornerShape(14.dp))
                         ) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                // Browser Top Bar / Address Bar
+                                // Address Bar Header
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(44.dp)
-                                        .background(NeoTokens.Gray.copy(alpha = 0.35f))
+                                        .background(Color(0xFFF1F5F9))
                                         .border(
                                             androidx.compose.foundation.BorderStroke(1.dp, NeoTokens.Black.copy(alpha = 0.2f))
                                         )
@@ -611,21 +686,21 @@ fun XiaozhiAuthScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        // Dots
+                                        // macOS Window Dots
                                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                             Box(Modifier.size(10.dp).background(NeoTokens.Coral, CircleShape))
                                             Box(Modifier.size(10.dp).background(NeoTokens.Yellow, CircleShape))
                                             Box(Modifier.size(10.dp).background(NeoTokens.Emerald, CircleShape))
                                         }
 
-                                        // URL Address pill
+                                        // URL Pill
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .padding(horizontal = 10.dp)
                                                 .height(28.dp)
                                                 .background(NeoTokens.White, RoundedCornerShape(6.dp))
-                                                .border(1.dp, NeoTokens.Black.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                                .border(1.dp, NeoTokens.Black.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
                                                 .padding(horizontal = 8.dp),
                                             contentAlignment = Alignment.CenterStart
                                         ) {
@@ -641,7 +716,7 @@ fun XiaozhiAuthScreen(
                                             }
                                         }
 
-                                        // Refresh icon inside address bar
+                                        // Reload Icon
                                         IconButton(
                                             onClick = {
                                                 webErrorMsg = null
@@ -668,6 +743,12 @@ fun XiaozhiAuthScreen(
                                                 settings.builtInZoomControls = true
                                                 settings.displayZoomControls = false
 
+                                                // Enable smooth touch inside nested scroll
+                                                setOnTouchListener { v, event ->
+                                                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                                                    false
+                                                }
+
                                                 webViewClient = object : WebViewClient() {
                                                     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                                         super.onPageStarted(view, url, favicon)
@@ -684,7 +765,7 @@ fun XiaozhiAuthScreen(
                                                         super.onReceivedError(view, request, error)
                                                         if (request?.isForMainFrame == true) {
                                                             isWebLoading = false
-                                                            webErrorMsg = "Belum terhubung ke Wi-Fi 'Xiaozhi-XXXX'. Silakan sambungkan HP ke hotspot ESP32 terlebih dahulu."
+                                                            webErrorMsg = "Belum dapat terhubung ke 192.168.4.1"
                                                         }
                                                     }
                                                 }
@@ -696,10 +777,10 @@ fun XiaozhiAuthScreen(
                                         modifier = Modifier.fillMaxSize()
                                     )
 
-                                    // Loading Spinner Overlay
+                                    // Loading Indicator Overlay
                                     if (isWebLoading) {
                                         Box(
-                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White.copy(alpha = 0.85f)),
+                                            modifier = Modifier.fillMaxSize().background(NeoTokens.White.copy(alpha = 0.88f)),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -715,7 +796,7 @@ fun XiaozhiAuthScreen(
                                         }
                                     }
 
-                                    // Error message overlay if AP not reachable
+                                    // Error Message Overlay
                                     if (webErrorMsg != null) {
                                         Box(
                                             modifier = Modifier.fillMaxSize().background(NeoTokens.White).padding(16.dp),
@@ -725,25 +806,47 @@ fun XiaozhiAuthScreen(
                                                 horizontalAlignment = Alignment.CenterHorizontally,
                                                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                                             ) {
-                                                Icon(Icons.Rounded.WifiOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(46.dp))
+                                                Icon(Icons.Rounded.WifiOff, null, tint = NeoTokens.Coral, modifier = Modifier.size(48.dp))
                                                 Spacer(Modifier.height(8.dp))
                                                 Text(
-                                                    text = "Portal Belum Terdeteksi (192.168.4.1)",
+                                                    text = "Portal ESP32 Belum Terdeteksi",
                                                     fontWeight = FontWeight.Black,
-                                                    fontSize = 15.sp,
+                                                    fontSize = 16.sp,
                                                     color = NeoTokens.Black,
                                                     textAlign = TextAlign.Center
                                                 )
                                                 Spacer(Modifier.height(8.dp))
-                                                Text(
-                                                    text = "Panduan Koneksi:\n1. Hubungkan Wi-Fi HP ke hotspot ESP32 ('Xiaozhi-XXXX' atau 'ESP32-AP').\n2. Jika HP memunculkan dialog 'Wi-Fi tidak ada internet', pilih 'Tetap Terhubung' (Stay Connected).\n3. Matikan sementara Data Seluler (4G/5G) agar HP tidak mengalihkan koneksi ke internet seluler.",
-                                                    fontSize = 11.5.sp,
-                                                    color = NeoTokens.Black,
-                                                    textAlign = TextAlign.Start,
-                                                    lineHeight = 16.sp,
-                                                    modifier = Modifier.background(NeoTokens.Cream, RoundedCornerShape(8.dp)).padding(10.dp)
-                                                )
-                                                Spacer(Modifier.height(12.dp))
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(NeoTokens.Cream, RoundedCornerShape(10.dp))
+                                                        .border(1.dp, NeoTokens.Black.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                                                        .padding(12.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Langkah Perbaikan:",
+                                                        fontWeight = FontWeight.Black,
+                                                        fontSize = 12.sp,
+                                                        color = NeoTokens.Black
+                                                    )
+                                                    Text(
+                                                        text = "1. Pastikan ponsel sudah terhubung ke hotspot Wi-Fi ESP32 ('Xiaozhi-XXXX').",
+                                                        fontSize = 11.5.sp,
+                                                        color = NeoTokens.Dark
+                                                    )
+                                                    Text(
+                                                        text = "2. Jika muncul peringatan 'Wi-Fi tanpa internet', wajib pilih 'Tetap Terhubung' (Stay Connected).",
+                                                        fontSize = 11.5.sp,
+                                                        color = NeoTokens.Dark
+                                                    )
+                                                    Text(
+                                                        text = "3. Matikan sementara Data Seluler (4G/5G) agar koneksi tidak dialihkan ke jaringan seluler.",
+                                                        fontSize = 11.5.sp,
+                                                        color = NeoTokens.Dark
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(14.dp))
                                                 Row(
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                     modifier = Modifier.fillMaxWidth()
@@ -752,7 +855,7 @@ fun XiaozhiAuthScreen(
                                                         onClick = {
                                                             context.startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
                                                         },
-                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.White),
+                                                        colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Yellow),
                                                         shape = RoundedCornerShape(8.dp),
                                                         border = androidx.compose.foundation.BorderStroke(1.5.dp, NeoTokens.Black),
                                                         modifier = Modifier.weight(1f)
@@ -853,7 +956,7 @@ fun XiaozhiAuthScreen(
                                 enabled = !isBusy
                             ) {
                                 Text(
-                                    text = "Atau buka Google Sign-In via Browser ↗",
+                                    text = "Atau buka Google Sign-In Alternatif (In-App) ↗",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = NeoTokens.Blue

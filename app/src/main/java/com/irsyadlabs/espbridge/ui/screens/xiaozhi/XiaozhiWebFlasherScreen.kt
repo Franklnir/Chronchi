@@ -244,15 +244,14 @@ fun XiaozhiWebFlasherScreen(
                         )
 
                         // Konfigurasi Cookie & Session Sync
-                        CookieManager.getInstance().apply {
-                            setAcceptCookie(true)
-                            setAcceptThirdPartyCookies(this@apply, true)
-                            if (!accessToken.isNullOrBlank()) {
-                                setCookie(
-                                    "https://xiaozhiscig.biz.id",
-                                    "access_token=$accessToken; Path=/; Secure; SameSite=Lax"
-                                )
-                            }
+                        val cookieManager = CookieManager.getInstance()
+                        cookieManager.setAcceptCookie(true)
+                        cookieManager.setAcceptThirdPartyCookies(this, true)
+                        if (!accessToken.isNullOrBlank()) {
+                            cookieManager.setCookie(
+                                "https://xiaozhiscig.biz.id",
+                                "access_token=$accessToken; Path=/; Secure; SameSite=Lax"
+                            )
                         }
 
                         webViewClient = object : WebViewClient() {

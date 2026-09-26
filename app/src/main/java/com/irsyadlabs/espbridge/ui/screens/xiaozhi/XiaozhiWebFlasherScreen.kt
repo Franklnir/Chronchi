@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.hardware.usb.UsbManager
+import com.irsyadlabs.espbridge.utils.EspUsbSerialHelper
+import android.hardware.usb.UsbDevice
+
 import android.net.Uri
 import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -117,7 +120,11 @@ fun XiaozhiWebFlasherScreen(
     var customFileUri by remember { mutableStateOf<Uri?>(null) }
 
     // USB Connection State
-    val usbManager = remember { context.getSystemService(Context.USB_SERVICE) as? UsbManager }
+    val serialHelper = remember { EspUsbSerialHelper(context) }
+    DisposableEffect(Unit) { onDispose { serialHelper.cleanup() } }
+    
+    var activeUsbDevice by remember { mutableStateOf<UsbDevice?>(null) }
+
     var isUsbConnected by remember { mutableStateOf(false) }
     var connectedDeviceName by remember { mutableStateOf<String?>(null) }
     var chipModel by remember { mutableStateOf("ESP32-S3 (QIO 16MB)") }
@@ -149,22 +156,44 @@ fun XiaozhiWebFlasherScreen(
 
     // Auto-detect USB Devices
     fun scanUsbDevices() {
-        if (usbManager == null) {
-            logConsole("[WARN] UsbManager tidak tersedia di peranti ini.")
-            return
-        }
-        val devices = usbManager.deviceList
+        val devices = serialHelper.getAvailableDevices()
         if (devices.isEmpty()) {
             isUsbConnected = false
             connectedDeviceName = null
-            logConsole("[SCAN] Tidak ada perangkat USB terdeteksi. Pastikan kabel OTG terpasang.")
+            activeUsbDevice = null
+            logConsole("[SCAN] Tidak ada perangkat USB Serial (CH340/CP2102) terdeteksi via OTG.")
         } else {
-            val device = devices.values.first()
-            val devName = device.productName ?: "USB Serial Device (${device.vendorId}:${device.productId})"
+            val device = devices.first()
+            val devName = device.productName ?: "USB Serial Device"
             connectedDeviceName = devName
-            isUsbConnected = true
-            logConsole("[USB] Perangkat terdeteksi: $devName")
-            logConsole("[USB] Port COM siap digunakan pada baudrate $baudRate bps.")
+            activeUsbDevice = device
+            logConsole("[USB] Perangkat serial terdeteksi: $devName")
+            
+            serialHelper.onPermissionGranted = { granted ->
+                if (granted) {
+                    val connected = serialHelper.connect(device, baudRate.toIntOrNull() ?: 115200)
+                    isUsbConnected = connected
+                } else {
+                    logConsole("[ERROR] Izin akses USB ditolak.")
+                    isUsbConnected = false
+                }
+            }
+            
+            val connected = serialHelper.connect(device, baudRate.toIntOrNull() ?: 115200)
+            isUsbConnected = connected
+        }
+    }
+    
+    LaunchedEffect(Unit) {
+        serialHelper.serialDataFlow.collect { data ->
+            val cleanData = data.replace("\r", "").trim()
+            if (cleanData.isNotEmpty()) {
+                val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+                val lines = cleanData.split("\n")
+                lines.forEach { line ->
+                    if (line.isNotBlank()) consoleLogs.add("[$time] [RX] $line")
+                }
+            }
         }
     }
 

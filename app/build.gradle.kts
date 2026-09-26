@@ -171,4 +171,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
+
+    // USB Serial for ESP32 Flasher
+    implementation("com.github.mik3y:usb-serial-for-android:3.8.0")
 }

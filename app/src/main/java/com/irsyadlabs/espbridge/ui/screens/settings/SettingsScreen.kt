@@ -173,7 +173,7 @@ fun SettingsScreen(
                             border = androidx.compose.foundation.BorderStroke(1.5.dp, SketchTeal)
                         ) {
                             Text(
-                                text = "v1.4.4 (11)",
+                                text = "v1.4.5 (12)",
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 12.sp,

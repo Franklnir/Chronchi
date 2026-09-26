@@ -408,6 +408,36 @@ fun AppNavHost(viewModel: MainViewModel) {
                 )
             }
 
+            // Web Flasher ESP32
+            composable(XiaozhiDestination.Flasher.route) {
+                val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()
+                
+                LaunchedEffect(hasXiaozhiToken) {
+                    if (!hasXiaozhiToken) {
+                        navController.navigate(ROUTE_XIAOZHI_AUTH) {
+                            popUpTo(XiaozhiDestination.Flasher.route) { inclusive = true }
+                        }
+                    }
+                }
+
+                if (!hasXiaozhiToken) {
+                    Box(Modifier.fillMaxSize().background(NeoTokens.Cream), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = NeoTokens.Emerald)
+                    }
+                    return@composable
+                }
+
+                XiaozhiWebFlasherScreen(
+                    currentUsername = state.settings.xiaozhiUsername,
+                    accessToken = state.settings.xiaozhiAccessToken,
+                    onClaimPresetCode = { code, onResult ->
+                        // Implementasi klaim kode lisensi dari backend (jika ada)
+                        // Sementara simulasi sukses:
+                        onResult(true, "Kode $code berhasil diklaim!")
+                    }
+                )
+            }
+
             // User List (Admin): Wajib Login (Jika MCP belum terhubung -> Tampilkan Overlay Kunci MCP)
             composable(XiaozhiDestination.UserList.route) {
                 val hasXiaozhiToken = !state.settings.xiaozhiAccessToken.isNullOrBlank()

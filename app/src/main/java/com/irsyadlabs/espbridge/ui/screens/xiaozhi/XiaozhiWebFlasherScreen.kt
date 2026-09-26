@@ -42,6 +42,13 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import org.json.JSONArray
+import java.net.HttpURLConnection
+import java.net.URL
+
 
 enum class FlasherSourceTab {
     PRESET,
@@ -95,20 +102,50 @@ fun XiaozhiWebFlasherScreen(
     var eraseAll by remember { mutableStateOf(false) }
 
     // Preset & Lisensi State
-    val presets = remember {
-        listOf(
-            FlasherPreset(
-                id = "esp32s3_cam",
-                title = "ESP32-S3 N16R8 / CAM Full Factory",
-                chip = "ESP32-S3",
-                offset = "0x0",
-                activeVersion = "v001",
-                description = "Binary komersial resmi • Bootloader, Partisi, OTA, Voice App, Aset UI & Audio.",
-                isAuthorized = true
-            )
-        )
+    val presets = remember { mutableStateListOf<FlasherPreset>() }
+    var selectedPreset by remember { mutableStateOf<FlasherPreset?>(null) }
+    
+    // Fetch presets from Website API
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                val url = URL("https://xiaozhiscig.biz.id/api/presets/public")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                if (connection.responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().readText()
+                    val jsonArray = JSONArray(response)
+                    val fetchedList = mutableListOf<FlasherPreset>()
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        fetchedList.add(
+                            FlasherPreset(
+                                id = obj.optString("id", ""),
+                                title = obj.optString("title", ""),
+                                chip = obj.optString("chip_target", "ESP32-S3"),
+                                offset = obj.optString("offset", "0x0"),
+                                activeVersion = obj.optString("active_version", "v1.0"),
+                                description = obj.optString("description", ""),
+                                isAuthorized = !obj.optBoolean("requires_license", false)
+                            )
+                        )
+                    }
+                    withContext(Dispatchers.Main) {
+                        presets.clear()
+                        presets.addAll(fetchedList)
+                        if (presets.isNotEmpty()) selectedPreset = presets.first()
+                        logConsole("[API] Berhasil sinkronisasi ${presets.size} Preset Firmware dari Website.")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    logConsole("[ERROR] Gagal memuat preset dari website: ${e.localizedMessage}")
+                }
+            }
+        }
     }
-    var selectedPreset by remember { mutableStateOf(presets.first()) }
     var isPresetUnlocked by remember { mutableStateOf(true) }
     var claimCodeInput by remember { mutableStateOf("") }
     var claimMessage by remember { mutableStateOf<String?>(null) }
@@ -236,8 +273,8 @@ fun XiaozhiWebFlasherScreen(
                 logConsole("[ERASE] Flash berhasil dihapus 100%.")
             }
 
-            val targetName = if (selectedTab == FlasherSourceTab.PRESET) selectedPreset.title else (customFileName ?: "Custom Firmware")
-            val targetOffset = if (selectedTab == FlasherSourceTab.PRESET) selectedPreset.offset else selectedOffset
+            val targetName = if (selectedTab == FlasherSourceTab.PRESET) selectedPreset?.title ?: "" else (customFileName ?: "Custom Firmware")
+            val targetOffset = if (selectedTab == FlasherSourceTab.PRESET) selectedPreset?.offset ?: "0x0" else selectedOffset
             logConsole("[FLASH] Menulis binary: $targetName ke Offset $targetOffset...")
 
             for (step in 1..20) {
@@ -564,13 +601,13 @@ fun XiaozhiWebFlasherScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = selectedPreset.title,
+                                        text = selectedPreset?.title ?: "",
                                         fontWeight = FontWeight.Black,
                                         fontSize = 13.5.sp,
                                         color = NeoTokens.Black
                                     )
                                     Text(
-                                        text = selectedPreset.description,
+                                        text = selectedPreset?.description ?: "",
                                         fontSize = 11.5.sp,
                                         color = NeoTokens.Muted,
                                         modifier = Modifier.padding(top = 2.dp)
@@ -583,7 +620,7 @@ fun XiaozhiWebFlasherScreen(
                                             .border(1.dp, NeoTokens.Black, RoundedCornerShape(4.dp))
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
-                                        Text(selectedPreset.activeVersion, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                                        Text(selectedPreset?.activeVersion ?: "", fontSize = 10.sp, fontWeight = FontWeight.Black)
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Box(
@@ -633,12 +670,12 @@ fun XiaozhiWebFlasherScreen(
                                         ) {
                                             Text("🔓 LISENSI AKTIF", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color.White)
                                         }
-                                        Text("Akses versi ${selectedPreset.activeVersion}", fontSize = 11.sp, color = NeoTokens.Muted)
+                                        Text("Akses versi ${selectedPreset?.activeVersion ?: ""}", fontSize = 11.sp, color = NeoTokens.Muted)
                                     }
 
                                     Button(
                                         onClick = {
-                                            logConsole("[PRESET] Preset resmi dimuat ke flasher: ${selectedPreset.title}")
+                                            logConsole("[PRESET] Preset resmi dimuat ke flasher: ${selectedPreset?.title ?: ""}")
                                             logConsole("[PRESET] Target Offset: 0x0 (Full Factory Merged)")
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = NeoTokens.Emerald),
